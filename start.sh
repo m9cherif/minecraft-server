@@ -1,31 +1,7 @@
 #!/bin/bash
 
-PAPER_VERSION=1.21.11
+echo "Getting builds..."
 
-echo "Downloading latest Paper for $PAPER_VERSION..."
-
-curl -L \
-"https://fill.papermc.io/v1/objects/paper/${PAPER_VERSION}/latest/download" \
--o server.jar
-
-echo "Downloaded file size:"
-ls -lh server.jar
-
-echo "eula=true" > eula.txt
-
-cat > server.properties << EOF
-motd=Render Minecraft Server
-max-players=3
-online-mode=true
-difficulty=normal
-spawn-protection=0
-view-distance=6
-simulation-distance=4
-EOF
-
-echo "===== FILE CONTENT ====="
-cat server.jar
-echo
-echo "========================"
+curl -s https://api.papermc.io/v2/projects/paper/versions/1.21.11
 
 sleep 300
