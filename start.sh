@@ -10,4 +10,4 @@ fi
 
 echo "eula=true" > eula.txt
 
-java -Xms128M -Xmx384M -jar server.jar nogui
+java -Xms64M -Xmx256M -jar server.jar nogui
