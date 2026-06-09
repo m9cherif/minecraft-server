@@ -23,4 +23,9 @@ view-distance=6
 simulation-distance=4
 EOF
 
-java -Xms512M -Xmx1024M -jar server.jar nogui
+echo "===== FILE CONTENT ====="
+cat server.jar
+echo
+echo "========================"
+
+sleep 300
