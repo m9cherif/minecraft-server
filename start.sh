@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Getting builds..."
+echo "Checking Paper builds..."
 
 curl -s https://api.papermc.io/v2/projects/paper/versions/1.21.11
 
