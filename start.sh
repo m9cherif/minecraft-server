@@ -6,6 +6,8 @@ PAPER_BUILD=151
 if [ ! -f server.jar ]; then
   echo "Downloading Paper..."
   curl -L -o server.jar https://api.papermc.io/v2/projects/paper/versions/${PAPER_VERSION}/builds/${PAPER_BUILD}/downloads/paper-${PAPER_VERSION}-${PAPER_BUILD}.jar
+  ls -lh server.jar
+  cat server.jar
 fi
 
 if [ ! -f eula.txt ]; then
