@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PAPER_VERSION=1.21.6
+PAPER_VERSION=26.1.2
 PAPER_BUILD=151
 
 if [ ! -f server.jar ]; then
