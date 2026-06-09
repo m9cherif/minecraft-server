@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jdk
 
 WORKDIR /server
 
@@ -8,6 +8,4 @@ COPY start.sh .
 
 RUN chmod +x start.sh
 
-EXPOSE 25565
-
-CMD ["./start.sh"]
+CMD ["bash", "start.sh"]
