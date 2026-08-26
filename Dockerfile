@@ -11,13 +11,17 @@ WORKDIR /server
 # network has occasionally dropped a single lookup mid-build. --retry-all-errors
 # covers that; get() also fails loudly with the real cause instead of leaving
 # it to jq to complain about invalid JSON.
-# --compressed: some APIs behind a CDN (Modrinth included) serve a
-# gzip-encoded body regardless of what curl asked for; without this curl
-# hands the raw compressed bytes to jq, which sees "control characters" and
-# fails with an exit code that gets misread as a network problem.
-# User-Agent: Modrinth's API asks every client to identify itself and can
-# reply with something other than the expected JSON to a generic curl UA.
-ENV CURL_RETRY="--retry 6 --retry-delay 3 --retry-all-errors --connect-timeout 10 --compressed -H User-Agent:minecraft-server-render/1.0(https://github.com/m9cherif/minecraft-server)"
+#
+# Accept-Encoding: identity — confirmed by dumping the actual response
+# (headers said content-encoding: br, i.e. Brotli) that Modrinth's CDN
+# serves a compressed body regardless of what curl requests via --compressed,
+# and that this curl build's brotli decoder was leaving a stray raw control
+# byte in the decoded output partway through — valid-looking JSON for the
+# first few hundred bytes, then a jq parse error deeper in the same response.
+# Forcing an uncompressed response sidesteps decoding entirely rather than
+# trusting a decoder that's already shown it can corrupt output.
+# User-Agent: Modrinth's API asks every client to identify itself.
+ENV CURL_RETRY="--retry 6 --retry-delay 3 --retry-all-errors --connect-timeout 10 -H Accept-Encoding:identity -H User-Agent:minecraft-server-render/1.0(https://github.com/m9cherif/minecraft-server)"
 
 # ---------------------------------------------------------------- Fabric
 ARG MC_VERSION=26.2
@@ -37,19 +41,8 @@ RUN get() { curl -fSL $CURL_RETRY "$@"; } \
 # never raw UDP. See render-entrypoint.sh for how the TCP side gets through.
 RUN mkdir -p mods
 COPY mods/veinminer-*.jar mods/
-# TEMPORARY: two prior guesses (retry, then compression/User-Agent) didn't
-# fix this, and the same "control characters" error at the same line/column
-# recurs regardless of response size — that pattern means guessing again
-# isn't warranted. Dump what Modrinth actually sends so the real cause is
-# visible in the build log instead of inferred.
 RUN get() { curl -fSL $CURL_RETRY "$@"; } \
-    && get "https://api.modrinth.com/v2/project/fabric-api/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D" \
-      -o /tmp/modrinth_raw -D /tmp/modrinth_headers \
-    && echo "--- response headers ---" && cat /tmp/modrinth_headers \
-    && echo "--- byte count ---" && wc -c /tmp/modrinth_raw \
-    && echo "--- first 300 bytes, octal dump ---" && head -c 300 /tmp/modrinth_raw | od -c | head -30
-RUN get() { curl -fSL $CURL_RETRY "$@"; } \
-    && FAPI_JSON=$(cat /tmp/modrinth_raw) \
+    && FAPI_JSON=$(get "https://api.modrinth.com/v2/project/fabric-api/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D") \
     && FAPI_URL=$(echo "$FAPI_JSON" | jq -r '.[0].files[] | select(.primary == true) | .url') \
     && FAPI_NAME=$(echo "$FAPI_JSON" | jq -r '.[0].files[] | select(.primary == true) | .filename') \
     && test -n "$FAPI_URL" && test "$FAPI_URL" != "null" \
