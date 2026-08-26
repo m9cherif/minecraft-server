@@ -32,24 +32,19 @@ RUN get() { curl -fSL $CURL_RETRY "$@"; } \
 # never raw UDP. See render-entrypoint.sh for how the TCP side gets through.
 RUN mkdir -p mods
 COPY mods/veinminer-*.jar mods/
-# Confirmed by dumping the raw response (identical byte-for-byte whether or
-# not compression was requested, ruling that out) that Modrinth's own API
-# sends back a body with a raw, unescaped control byte buried in it — most
-# likely a literal newline inside some version's changelog text that their
-# serializer failed to escape. That's a data quality issue on their end, not
-# something curl flags can fix, so the response is sanitized before jq ever
-# sees it. [:cntrl:] rather than a \NNN-\NNN octal range: not every tr
-# implementation expands octal escapes before evaluating a range (some treat
-# "\000-\037" as the literal characters \,0,-,3,7), so the octal form risked
-# silently deleting the wrong bytes depending on which tr this image ships.
+# TEMPORARY: five jq-based attempts to parse Modrinth's version list all hit
+# the same "control characters" error, and the last one proved the payload
+# has literally zero raw control bytes in it (tr -d '[:cntrl:]' removed
+# nothing) — so the theory that Modrinth's data was malformed is disproven
+# too. Something about how jq is being invoked here is the real problem,
+# not the data. Decision: stop trying to fix jq's path and grep the file URL
+# out as plain text instead, then hardcode it below. This step just prints
+# candidates so the real one can be read from the build log and pinned.
 RUN get() { curl -fSL $CURL_RETRY "$@"; } \
-    && FAPI_RAW=$(get "https://api.modrinth.com/v2/project/fabric-api/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D") \
-    && FAPI_JSON=$(printf '%s' "$FAPI_RAW" | tr -d '[:cntrl:]') \
-    && echo "Modrinth response: ${#FAPI_RAW} bytes raw, ${#FAPI_JSON} after stripping control chars" \
-    && FAPI_URL=$(echo "$FAPI_JSON" | jq -r '.[0].files[] | select(.primary == true) | .url') \
-    && FAPI_NAME=$(echo "$FAPI_JSON" | jq -r '.[0].files[] | select(.primary == true) | .filename') \
-    && test -n "$FAPI_URL" && test "$FAPI_URL" != "null" \
-    && get "$FAPI_URL" -o "mods/$FAPI_NAME"
+    && get "https://api.modrinth.com/v2/project/fabric-api/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D" \
+      -o /tmp/fapi_raw \
+    && echo "--- candidate jar URLs (newest first) ---" \
+    && grep -oE 'https://cdn\.modrinth\.com/data/P7dR8mSH/versions/[^"]+\.jar' /tmp/fapi_raw | head -5
 
 COPY server.properties eula.txt ./
 
