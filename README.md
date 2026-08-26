@@ -124,7 +124,9 @@ which starts on boot and restarts on crashes, then point a DNS A record plus an
 SRV record at the host so players can join at your domain without typing a port.
 
 Full instructions, including firewall rules and what to do without a public IP:
-**[deploy/README.md](deploy/README.md)**.
+**[deploy/README.md](deploy/README.md)**. New to this? Follow
+**[deploy/BEGINNER.md](deploy/BEGINNER.md)** instead, which assumes nothing.
+For free 24/7 hosting, see **[deploy/FREE-ORACLE.md](deploy/FREE-ORACLE.md)**.
 
 ## Layout
 
