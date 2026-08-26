@@ -6,14 +6,23 @@ RUN apt-get update \
 
 WORKDIR /server
 
+# A plain "curl | jq" build step gives a confusing jq parse error when the
+# curl call itself failed transiently (empty/partial body) — Render's build
+# network has occasionally dropped a single lookup mid-build. --retry-all-errors
+# covers that; get() also fails loudly with the real cause instead of leaving
+# it to jq to complain about invalid JSON.
+ENV CURL_RETRY="--retry 6 --retry-delay 3 --retry-all-errors --connect-timeout 10"
+
 # ---------------------------------------------------------------- Fabric
 ARG MC_VERSION=26.2
-RUN LOADER_VERSION=$(curl -fsSL "https://meta.fabricmc.net/v2/versions/loader/${MC_VERSION}" \
+RUN get() { curl -fSL $CURL_RETRY "$@"; } \
+    && LOADER_VERSION=$(get "https://meta.fabricmc.net/v2/versions/loader/${MC_VERSION}" \
       | jq -r '[.[] | select(.loader.stable == true)][0].loader.version') \
-    && INSTALLER_VERSION=$(curl -fsSL "https://meta.fabricmc.net/v2/versions/installer" \
+    && INSTALLER_VERSION=$(get "https://meta.fabricmc.net/v2/versions/installer" \
       | jq -r '[.[] | select(.stable == true)][0].version') \
-    && curl -fSL --retry 3 \
-      "https://meta.fabricmc.net/v2/versions/loader/${MC_VERSION}/${LOADER_VERSION}/${INSTALLER_VERSION}/server/jar" \
+    && test -n "$LOADER_VERSION" && test "$LOADER_VERSION" != "null" \
+    && test -n "$INSTALLER_VERSION" && test "$INSTALLER_VERSION" != "null" \
+    && get "https://meta.fabricmc.net/v2/versions/loader/${MC_VERSION}/${LOADER_VERSION}/${INSTALLER_VERSION}/server/jar" \
       -o server.jar
 
 # ------------------------------------------------------------------ mods
@@ -22,10 +31,12 @@ RUN LOADER_VERSION=$(curl -fsSL "https://meta.fabricmc.net/v2/versions/loader/${
 # never raw UDP. See render-entrypoint.sh for how the TCP side gets through.
 RUN mkdir -p mods
 COPY mods/veinminer-*.jar mods/
-RUN FAPI_JSON=$(curl -fsSL "https://api.modrinth.com/v2/project/fabric-api/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D") \
+RUN get() { curl -fSL $CURL_RETRY "$@"; } \
+    && FAPI_JSON=$(get "https://api.modrinth.com/v2/project/fabric-api/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D") \
     && FAPI_URL=$(echo "$FAPI_JSON" | jq -r '.[0].files[] | select(.primary == true) | .url') \
     && FAPI_NAME=$(echo "$FAPI_JSON" | jq -r '.[0].files[] | select(.primary == true) | .filename') \
-    && curl -fSL --retry 3 "$FAPI_URL" -o "mods/$FAPI_NAME"
+    && test -n "$FAPI_URL" && test "$FAPI_URL" != "null" \
+    && get "$FAPI_URL" -o "mods/$FAPI_NAME"
 
 COPY server.properties eula.txt ./
 
@@ -37,9 +48,11 @@ COPY server.properties eula.txt ./
 # deploy/RENDER.md. This is the actual workaround for a platform limit, not
 # a security bypass — wstunnel is a standard, widely used open-source tool
 # for exactly this situation.
-RUN WSTUNNEL_URL=$(curl -fsSL https://api.github.com/repos/erebe/wstunnel/releases/latest \
+RUN get() { curl -fSL $CURL_RETRY "$@"; } \
+    && WSTUNNEL_URL=$(get https://api.github.com/repos/erebe/wstunnel/releases/latest \
       | jq -r '.assets[] | select(.name | test("linux_amd64.*tar\\.gz$")) | .browser_download_url') \
-    && curl -fSL --retry 3 "$WSTUNNEL_URL" -o /tmp/wstunnel.tar.gz \
+    && test -n "$WSTUNNEL_URL" && test "$WSTUNNEL_URL" != "null" \
+    && get "$WSTUNNEL_URL" -o /tmp/wstunnel.tar.gz \
     && tar -xzf /tmp/wstunnel.tar.gz -C /usr/local/bin wstunnel \
     && chmod +x /usr/local/bin/wstunnel \
     && rm /tmp/wstunnel.tar.gz
