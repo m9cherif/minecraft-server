@@ -1,49 +1,131 @@
 # minecraft-server
 
-A [PaperMC](https://papermc.io/) Minecraft server packaged as a Docker image, set up to run on [Render](https://render.com/).
+A modded **Minecraft 26.2 / Fabric** dedicated server, tuned for a 16 GB host.
 
-## How it works
+Ships with **Veinminer**, pulls **Simple Voice Chat** and **Fabric API** at setup
+time, and carries **Meteor Client** for players to install on their own machines.
 
-`start.sh` does three things:
+## Requirements
 
-1. Starts a throwaway `python3 -m http.server` on `$PORT` (default `10000`). Render only
-   considers a web service healthy once something binds its port, so this keeps the
-   service alive.
-2. Downloads the Paper jar to `server.jar` if it isn't there yet.
-3. Launches the server with `java -jar server.jar nogui`.
+- Linux or macOS (Windows via WSL)
+- **Java 25 or newer** — Minecraft 26.2 and Meteor both require it
+- `curl` and `jq`
+- 16 GB RAM, and disk space that grows with the world
 
-## Configuration
+```bash
+sudo apt update && sudo apt install -y openjdk-25-jre-headless curl jq
+```
 
-Everything is overridable through environment variables:
+## Quick start
+
+```bash
+git clone https://github.com/m9cherif/minecraft-server.git
+cd minecraft-server
+./setup.sh     # downloads the Fabric server + Fabric API + Simple Voice Chat
+./start.sh     # runs it
+```
+
+First start generates the world and takes a few minutes. Stop the server by
+typing `stop` in the console.
+
+## Ports
+
+| Port | Protocol | What |
+| --- | --- | --- |
+| 25565 | TCP | Minecraft |
+| 24454 | **UDP** | Simple Voice Chat |
+
+Both need forwarding for people outside your LAN. The voice port is UDP and is
+easy to miss — if players connect fine but voice chat reports "unable to connect",
+that forward is the reason.
+
+## Mods
+
+| Mod | Where it runs | How it gets installed |
+| --- | --- | --- |
+| Veinminer 3.1.3 | server + client | Ships in `mods/` |
+| Fabric API | server + client | `setup.sh` |
+| Simple Voice Chat | server + client | `setup.sh` |
+| Meteor Client 26.2-13 | **client only** | Players install it themselves — see [`client-mods/`](client-mods/) |
+
+Meteor Client declares `"environment": "client"`, so Fabric Loader will not load
+it on a dedicated server. It is kept in `client-mods/` for players to download
+rather than in `mods/`, where it would do nothing.
+
+### What players need
+
+Everyone joining needs the Fabric loader for 26.2 plus **Fabric API**,
+**Veinminer** and **Simple Voice Chat** on their client — Veinminer and voice
+chat both have client halves, and joining without them means no vein mining and
+no voice. Meteor is optional and personal.
+
+Add more server mods by dropping Fabric jars for 26.2 into `mods/` and
+restarting. `setup.sh` leaves anything it did not install alone.
+
+## Tuning
+
+Both scripts read environment variables, so nothing needs editing to change:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PORT` | `10000` | Port the keep-alive HTTP server binds (set by Render). |
-| `PAPER_VERSION` | `26.1.2` | Paper (Minecraft) version. |
-| `PAPER_BUILD` | `69` | Paper build number. |
-| `PAPER_SHA256` | see `start.sh` | Object hash used to build the download URL. |
-| `PAPER_URL` | derived | Full jar URL; set this to bypass the three fields above. |
-| `JAVA_MIN_HEAP` | `64M` | `-Xms` value. |
-| `JAVA_MAX_HEAP` | `256M` | `-Xmx` value. |
-
-Server settings live in `server.properties`. Both it and `eula.txt` are copied into the
-image, so edits there take effect on the next build.
-
-## Running locally
+| `HEAP` | `12G` | Java heap. See the note below. |
+| `RESTART_ON_CRASH` | `true` | Restart automatically after a crash. |
+| `MC_VERSION` | `26.2` | Minecraft version `setup.sh` resolves mods against. |
+| `LOADER_VERSION` | newest stable | Pin the Fabric loader. |
 
 ```bash
-docker build -t minecraft-server .
-docker run --rm -p 25565:25565 -p 10000:10000 minecraft-server
+HEAP=8G ./start.sh
 ```
 
-To keep worlds between restarts, mount a volume:
+**Why 12G and not 16G on a 16 GB machine.** The heap is not the JVM's whole
+footprint — metaspace, GC structures, thread stacks and network buffers all live
+outside it, and the OS page cache is what keeps region-file reads fast. Setting
+`-Xmx16G` on a 16 GB box drives the machine into swap, which costs far more
+performance than the extra heap buys. 12G leaves the rest breathing room. On a
+32 GB host, `HEAP=24G` is the equivalent number.
 
-```bash
-docker run --rm -p 25565:25565 -v "$PWD/data:/server" minecraft-server
+`start.sh` uses [Aikar's flags](https://docs.papermc.io/paper/aikar-flags) in the
+>12 GB shape: G1GC with a large young generation, so a big heap collects in many
+short pauses instead of one long freeze.
+
+`server.properties` is commented throughout — `view-distance` is the setting with
+by far the largest effect on how many players you can hold.
+
+## World and player limits
+
+`max-players` is 100 and the world border is left at the engine maximum
+(29,999,984 blocks), so neither the player count nor the world size is
+artificially capped. The real limits are your CPU for concurrent players and
+your disk for world size — a heavily explored world grows to tens of GB.
+
+## Security: this server is cracked
+
+`online-mode=false` disables Mojang account verification, as requested. That
+means **anyone who knows the address can join as any username**, including one
+that is already opped. There is no password.
+
+If the server is reachable from the internet, do at least one of:
+
+- **Use the whitelist.** Set `white-list=true` and `enforce-whitelist=true` in
+  `server.properties`, then `/whitelist add <name>` for each player. This is the
+  simplest real protection and costs nothing.
+- **Firewall it** to known IPs, or keep it on a LAN/VPN such as Tailscale.
+- **Add an auth mod** so players register a password on first join.
+
+Op accounts are the thing to guard: with offline mode and no whitelist, someone
+joining as your username gets your permissions. Also note `enable-rcon` is off
+and `rcon.password` is empty — set a real password before ever turning it on.
+
+## Layout
+
+```
+setup.sh                        one-time install / re-run to update
+start.sh                        launcher with the 16 GB JVM flags
+server.properties               server config, commented
+config/voicechat/               Simple Voice Chat settings
+mods/                           server-side mods
+client-mods/                    mods players install themselves
 ```
 
-## Note on memory
-
-The default `256M` max heap is very small for a Paper server — it fits a free Render
-instance but will struggle with more than a couple of players. Raise `JAVA_MAX_HEAP`
-if your plan allows it.
+`setup.sh` is safe to re-run — it re-resolves the newest compatible builds and
+replaces the copies it installed previously.
