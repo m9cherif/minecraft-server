@@ -38,10 +38,14 @@ COPY mods/veinminer-*.jar mods/
 # likely a literal newline inside some version's changelog text that their
 # serializer failed to escape. That's a data quality issue on their end, not
 # something curl flags can fix, so the response is sanitized before jq ever
-# sees it rather than trusting it to already be valid JSON.
+# sees it. [:cntrl:] rather than a \NNN-\NNN octal range: not every tr
+# implementation expands octal escapes before evaluating a range (some treat
+# "\000-\037" as the literal characters \,0,-,3,7), so the octal form risked
+# silently deleting the wrong bytes depending on which tr this image ships.
 RUN get() { curl -fSL $CURL_RETRY "$@"; } \
-    && FAPI_JSON=$(get "https://api.modrinth.com/v2/project/fabric-api/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D" \
-      | tr -d '\000-\037') \
+    && FAPI_RAW=$(get "https://api.modrinth.com/v2/project/fabric-api/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D") \
+    && FAPI_JSON=$(printf '%s' "$FAPI_RAW" | tr -d '[:cntrl:]') \
+    && echo "Modrinth response: ${#FAPI_RAW} bytes raw, ${#FAPI_JSON} after stripping control chars" \
     && FAPI_URL=$(echo "$FAPI_JSON" | jq -r '.[0].files[] | select(.primary == true) | .url') \
     && FAPI_NAME=$(echo "$FAPI_JSON" | jq -r '.[0].files[] | select(.primary == true) | .filename') \
     && test -n "$FAPI_URL" && test "$FAPI_URL" != "null" \
