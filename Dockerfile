@@ -37,8 +37,19 @@ RUN get() { curl -fSL $CURL_RETRY "$@"; } \
 # never raw UDP. See render-entrypoint.sh for how the TCP side gets through.
 RUN mkdir -p mods
 COPY mods/veinminer-*.jar mods/
+# TEMPORARY: two prior guesses (retry, then compression/User-Agent) didn't
+# fix this, and the same "control characters" error at the same line/column
+# recurs regardless of response size — that pattern means guessing again
+# isn't warranted. Dump what Modrinth actually sends so the real cause is
+# visible in the build log instead of inferred.
 RUN get() { curl -fSL $CURL_RETRY "$@"; } \
-    && FAPI_JSON=$(get "https://api.modrinth.com/v2/project/fabric-api/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D") \
+    && get "https://api.modrinth.com/v2/project/fabric-api/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D" \
+      -o /tmp/modrinth_raw -D /tmp/modrinth_headers \
+    && echo "--- response headers ---" && cat /tmp/modrinth_headers \
+    && echo "--- byte count ---" && wc -c /tmp/modrinth_raw \
+    && echo "--- first 300 bytes, octal dump ---" && head -c 300 /tmp/modrinth_raw | od -c | head -30
+RUN get() { curl -fSL $CURL_RETRY "$@"; } \
+    && FAPI_JSON=$(cat /tmp/modrinth_raw) \
     && FAPI_URL=$(echo "$FAPI_JSON" | jq -r '.[0].files[] | select(.primary == true) | .url') \
     && FAPI_NAME=$(echo "$FAPI_JSON" | jq -r '.[0].files[] | select(.primary == true) | .filename') \
     && test -n "$FAPI_URL" && test "$FAPI_URL" != "null" \
