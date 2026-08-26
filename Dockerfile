@@ -11,17 +11,8 @@ WORKDIR /server
 # network has occasionally dropped a single lookup mid-build. --retry-all-errors
 # covers that; get() also fails loudly with the real cause instead of leaving
 # it to jq to complain about invalid JSON.
-#
-# Accept-Encoding: identity — confirmed by dumping the actual response
-# (headers said content-encoding: br, i.e. Brotli) that Modrinth's CDN
-# serves a compressed body regardless of what curl requests via --compressed,
-# and that this curl build's brotli decoder was leaving a stray raw control
-# byte in the decoded output partway through — valid-looking JSON for the
-# first few hundred bytes, then a jq parse error deeper in the same response.
-# Forcing an uncompressed response sidesteps decoding entirely rather than
-# trusting a decoder that's already shown it can corrupt output.
 # User-Agent: Modrinth's API asks every client to identify itself.
-ENV CURL_RETRY="--retry 6 --retry-delay 3 --retry-all-errors --connect-timeout 10 -H Accept-Encoding:identity -H User-Agent:minecraft-server-render/1.0(https://github.com/m9cherif/minecraft-server)"
+ENV CURL_RETRY="--retry 6 --retry-delay 3 --retry-all-errors --connect-timeout 10 -H User-Agent:minecraft-server-render/1.0(https://github.com/m9cherif/minecraft-server)"
 
 # ---------------------------------------------------------------- Fabric
 ARG MC_VERSION=26.2
@@ -41,8 +32,16 @@ RUN get() { curl -fSL $CURL_RETRY "$@"; } \
 # never raw UDP. See render-entrypoint.sh for how the TCP side gets through.
 RUN mkdir -p mods
 COPY mods/veinminer-*.jar mods/
+# Confirmed by dumping the raw response (identical byte-for-byte whether or
+# not compression was requested, ruling that out) that Modrinth's own API
+# sends back a body with a raw, unescaped control byte buried in it — most
+# likely a literal newline inside some version's changelog text that their
+# serializer failed to escape. That's a data quality issue on their end, not
+# something curl flags can fix, so the response is sanitized before jq ever
+# sees it rather than trusting it to already be valid JSON.
 RUN get() { curl -fSL $CURL_RETRY "$@"; } \
-    && FAPI_JSON=$(get "https://api.modrinth.com/v2/project/fabric-api/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D") \
+    && FAPI_JSON=$(get "https://api.modrinth.com/v2/project/fabric-api/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D" \
+      | tr -d '\000-\037') \
     && FAPI_URL=$(echo "$FAPI_JSON" | jq -r '.[0].files[] | select(.primary == true) | .url') \
     && FAPI_NAME=$(echo "$FAPI_JSON" | jq -r '.[0].files[] | select(.primary == true) | .filename') \
     && test -n "$FAPI_URL" && test "$FAPI_URL" != "null" \
