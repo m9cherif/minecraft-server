@@ -128,6 +128,12 @@ Full instructions, including firewall rules and what to do without a public IP:
 **[deploy/BEGINNER.md](deploy/BEGINNER.md)** instead, which assumes nothing.
 For free 24/7 hosting, see **[deploy/FREE-ORACLE.md](deploy/FREE-ORACLE.md)**.
 
+Want to use Render specifically? Render only proxies HTTP(S), never raw TCP or
+UDP, so this repo also ships a Docker build that tunnels Minecraft's TCP inside
+a WebSocket to get through that limit. It needs a paid Render plan to stay up,
+a client program every player must run, and drops voice chat entirely (no UDP
+tunnel exists here). Full explanation and setup: **[deploy/RENDER.md](deploy/RENDER.md)**.
+
 ## Layout
 
 ```
