@@ -1,0 +1,14 @@
+.git/
+.gitignore
+.dockerignore
+README.md
+
+# Never bake runtime data into the image
+server.jar
+world/
+world_nether/
+world_the_end/
+logs/
+cache/
+crash-reports/
+plugins/
