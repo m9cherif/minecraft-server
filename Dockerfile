@@ -11,7 +11,13 @@ WORKDIR /server
 # network has occasionally dropped a single lookup mid-build. --retry-all-errors
 # covers that; get() also fails loudly with the real cause instead of leaving
 # it to jq to complain about invalid JSON.
-ENV CURL_RETRY="--retry 6 --retry-delay 3 --retry-all-errors --connect-timeout 10"
+# --compressed: some APIs behind a CDN (Modrinth included) serve a
+# gzip-encoded body regardless of what curl asked for; without this curl
+# hands the raw compressed bytes to jq, which sees "control characters" and
+# fails with an exit code that gets misread as a network problem.
+# User-Agent: Modrinth's API asks every client to identify itself and can
+# reply with something other than the expected JSON to a generic curl UA.
+ENV CURL_RETRY="--retry 6 --retry-delay 3 --retry-all-errors --connect-timeout 10 --compressed -H User-Agent:minecraft-server-render/1.0(https://github.com/m9cherif/minecraft-server)"
 
 # ---------------------------------------------------------------- Fabric
 ARG MC_VERSION=26.2
