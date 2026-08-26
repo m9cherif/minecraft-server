@@ -1,0 +1,47 @@
+[Unit]
+Description=Minecraft Fabric server (26.2)
+Documentation=https://github.com/m9cherif/minecraft-server
+After=network-online.target
+Wants=network-online.target
+
+# Never give up permanently: without this a burst of fast crashes puts the unit
+# in a failed state and it stays down until someone notices.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=minecraft
+Group=minecraft
+WorkingDirectory=/opt/minecraft-server
+
+# systemd is the supervisor here, so start.sh must not restart the JVM itself —
+# two supervisors fight each other and defeat the rate limiting below. With this
+# off, start.sh execs java, making the JVM the main PID so SIGTERM reaches it.
+Environment=RESTART_ON_CRASH=false
+Environment=HEAP=12G
+ExecStart=/opt/minecraft-server/start.sh
+
+# 24/7: come back from crashes, OOM kills and clean stops alike, and start on boot.
+Restart=always
+RestartSec=15
+
+# Minecraft installs a shutdown hook, so plain SIGTERM saves the world and exits
+# cleanly. Give it room to finish writing chunks before systemd escalates to
+# SIGKILL — a large world can take a while, and a half-written save is corruption.
+KillSignal=SIGTERM
+TimeoutStopSec=300
+SuccessExitStatus=0 143
+
+LimitNOFILE=65536
+
+# Hardening: the server needs its own directory and the network, nothing else.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

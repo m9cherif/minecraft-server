@@ -116,6 +116,16 @@ Op accounts are the thing to guard: with offline mode and no whitelist, someone
 joining as your username gets your permissions. Also note `enable-rcon` is off
 and `rcon.password` is empty — set a real password before ever turning it on.
 
+## Running 24/7 and using your own domain
+
+`./start.sh` in a terminal dies with your SSH session and does not come back after
+a reboot. For a permanent server, install the systemd unit in [`deploy/`](deploy/),
+which starts on boot and restarts on crashes, then point a DNS A record plus an
+SRV record at the host so players can join at your domain without typing a port.
+
+Full instructions, including firewall rules and what to do without a public IP:
+**[deploy/README.md](deploy/README.md)**.
+
 ## Layout
 
 ```
@@ -125,6 +135,7 @@ server.properties               server config, commented
 config/voicechat/               Simple Voice Chat settings
 mods/                           server-side mods
 client-mods/                    mods players install themselves
+deploy/                         systemd unit + domain setup
 ```
 
 `setup.sh` is safe to re-run — it re-resolves the newest compatible builds and
