@@ -134,6 +134,29 @@ a WebSocket to get through that limit. It needs a paid Render plan to stay up,
 a client program every player must run, and drops voice chat entirely (no UDP
 tunnel exists here). Full explanation and setup: **[deploy/RENDER.md](deploy/RENDER.md)**.
 
+Using Hostinger? Their **web hosting** plans cannot run the game — no Java, no
+raw TCP port, nowhere near the RAM — but they run Node.js well, so this repo
+also ships a small Node app in [`web/`](web/) that gives the server a status
+page on your own domain, a JSON API, and an optional WebSocket tunnel for
+players who cannot reach the game host directly. Which of those you want, and
+what a Hostinger **VPS** changes: **[deploy/HOSTINGER.md](deploy/HOSTINGER.md)**.
+
+## Status page
+
+`web/` is a dependency-free Node.js app (Node 18+) that pings the server and
+publishes what it finds:
+
+```bash
+cd web
+cp .env.example .env    # set MC_HOST
+npm start               # http://localhost:3000
+```
+
+It shows online/offline, player count and names, version, MOTD and latency, and
+serves the same data at `/api/status`. It runs anywhere Node runs — shared
+hosting, a VPS next to the game server, or your own machine. Details in
+[`web/README.md`](web/README.md).
+
 ## Layout
 
 ```
@@ -143,7 +166,8 @@ server.properties               server config, commented
 config/voicechat/               Simple Voice Chat settings
 mods/                           server-side mods
 client-mods/                    mods players install themselves
-deploy/                         systemd unit + domain setup
+deploy/                         systemd units + domain and host setup
+web/                            Node.js status page, JSON API and tunnel
 ```
 
 `setup.sh` is safe to re-run — it re-resolves the newest compatible builds and

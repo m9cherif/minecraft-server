@@ -29,3 +29,8 @@ whitelist.json
 # Generated configs (config/voicechat is tracked on purpose)
 config/*
 !config/voicechat/
+
+# Node.js companion app (web/)
+node_modules/
+web/.env
+npm-debug.log*

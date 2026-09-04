@@ -129,6 +129,22 @@ enforce-whitelist=true
 
 then `/whitelist add <name>` per player.
 
+## A status page alongside it
+
+[`minecraft-web.service`](minecraft-web.service) runs the Node app in
+[`web/`](../web/) as a second unit on the same box — a status page and JSON API
+on your domain, using `MC_HOST=127.0.0.1` since it is local:
+
+```bash
+sudo cp /opt/minecraft-server/deploy/minecraft-web.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now minecraft-web
+```
+
+It listens on `127.0.0.1:3000` by default; put nginx or Caddy in front for HTTPS
+on your domain. Details in [HOSTINGER.md](HOSTINGER.md) and
+[`web/README.md`](../web/README.md).
+
 ## Backups
 
 Nothing here backs up your world. For a server meant to run indefinitely, add a
