@@ -36,7 +36,6 @@ mv server.jar.tmp server.jar
 # Mods that ship with this repo already live in mods/. These are fetched from
 # Modrinth so they always match MC_VERSION.
 #   fabric-api        (P7dR8mSH) — hard dependency of Veinminer
-#   simple-voice-chat (9eGKb6K1) — proximity voice chat, server side
 fetch_mod() {
   local slug="$1" label="$2" json url filename
   echo "==> $label"
@@ -54,9 +53,9 @@ fetch_mod() {
   curl -fSL --retry 3 "$url" -o "mods/$filename.tmp"
   mv "mods/$filename.tmp" "mods/$filename"
 
-  # Drop the copy installed by a previous run. Filenames do not follow the slug
-  # (simple-voice-chat ships as voicechat-fabric-*.jar), so the name is recorded
-  # rather than guessed, otherwise mods/ ends up holding two versions of one mod.
+  # Drop the copy installed by a previous run. Filenames do not follow the slug,
+  # so the name is recorded rather than guessed, otherwise mods/ ends up holding
+  # two versions of one mod.
   local stamp="mods/.installed-$slug"
   if [ -f "$stamp" ]; then
     local previous
@@ -68,8 +67,7 @@ fetch_mod() {
 }
 
 mkdir -p mods
-fetch_mod fabric-api        "Fabric API"
-fetch_mod simple-voice-chat "Simple Voice Chat"
+fetch_mod fabric-api "Fabric API"
 
 # ------------------------------------------------------------------------ eula
 [ -f eula.txt ] || echo "eula=true" > eula.txt

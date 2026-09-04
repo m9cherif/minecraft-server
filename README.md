@@ -1,16 +1,18 @@
 # minecraft-server
 
-A modded **Minecraft 26.2 / Fabric** dedicated server, tuned for a 16 GB host.
+A modded **Minecraft 26.2 / Fabric** dedicated server, tuned for a **2 GB heap**
+so it runs on a small VPS or a spare machine.
 
-Ships with **Veinminer**, pulls **Simple Voice Chat** and **Fabric API** at setup
-time, and carries **Meteor Client** for players to install on their own machines.
+Ships with **Veinminer**, pulls **Fabric API** at setup time, and carries
+**Meteor Client** for players to install on their own machines.
 
 ## Requirements
 
 - Linux or macOS (Windows via WSL)
 - **Java 25 or newer** — Minecraft 26.2 and Meteor both require it
 - `curl` and `jq`
-- 16 GB RAM, and disk space that grows with the world
+- **3 GB RAM** or more (2 GB of heap plus room for the JVM and page cache),
+  and disk space that grows with the world
 
 ```bash
 sudo apt update && sudo apt install -y openjdk-25-jre-headless curl jq
@@ -21,7 +23,7 @@ sudo apt update && sudo apt install -y openjdk-25-jre-headless curl jq
 ```bash
 git clone https://github.com/m9cherif/minecraft-server.git
 cd minecraft-server
-./setup.sh     # downloads the Fabric server + Fabric API + Simple Voice Chat
+./setup.sh     # downloads the Fabric server + Fabric API
 ./start.sh     # runs it
 ```
 
@@ -33,11 +35,12 @@ typing `stop` in the console.
 | Port | Protocol | What |
 | --- | --- | --- |
 | 25565 | TCP | Minecraft |
-| 24454 | **UDP** | Simple Voice Chat |
 
-Both need forwarding for people outside your LAN. The voice port is UDP and is
-easy to miss — if players connect fine but voice chat reports "unable to connect",
-that forward is the reason.
+That one port is all the server needs, and getting it reachable from the
+internet is the whole networking problem. If you cannot forward it — CGNAT, a
+router you do not control, a host that only speaks HTTP — **[deploy/TCP.md](deploy/TCP.md)**
+is the ranked list of every way to get real TCP working anyway, starting with
+the free ones that need nothing installed on players' machines.
 
 ## Mods
 
@@ -45,7 +48,6 @@ that forward is the reason.
 | --- | --- | --- |
 | Veinminer 3.1.3 | server + client | Ships in `mods/` |
 | Fabric API | server + client | `setup.sh` |
-| Simple Voice Chat | server + client | `setup.sh` |
 | Meteor Client 26.2-13 | **client only** | Players install it themselves — see [`client-mods/`](client-mods/) |
 
 Meteor Client declares `"environment": "client"`, so Fabric Loader will not load
@@ -54,10 +56,9 @@ rather than in `mods/`, where it would do nothing.
 
 ### What players need
 
-Everyone joining needs the Fabric loader for 26.2 plus **Fabric API**,
-**Veinminer** and **Simple Voice Chat** on their client — Veinminer and voice
-chat both have client halves, and joining without them means no vein mining and
-no voice. Meteor is optional and personal.
+Everyone joining needs the Fabric loader for 26.2 plus **Fabric API** and
+**Veinminer** on their client — Veinminer has a client half, and joining without
+it means no vein mining. Meteor is optional and personal.
 
 Add more server mods by dropping Fabric jars for 26.2 into `mods/` and
 restarting. `setup.sh` leaves anything it did not install alone.
@@ -68,35 +69,40 @@ Both scripts read environment variables, so nothing needs editing to change:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `HEAP` | `12G` | Java heap. See the note below. |
+| `HEAP` | `2G` | Java heap. See the note below. |
 | `RESTART_ON_CRASH` | `true` | Restart automatically after a crash. |
 | `MC_VERSION` | `26.2` | Minecraft version `setup.sh` resolves mods against. |
 | `LOADER_VERSION` | newest stable | Pin the Fabric loader. |
 
 ```bash
-HEAP=8G ./start.sh
+HEAP=4G ./start.sh
 ```
 
-**Why 12G and not 16G on a 16 GB machine.** The heap is not the JVM's whole
+**2G of heap wants about 3 GB of machine.** The heap is not the JVM's whole
 footprint — metaspace, GC structures, thread stacks and network buffers all live
-outside it, and the OS page cache is what keeps region-file reads fast. Setting
-`-Xmx16G` on a 16 GB box drives the machine into swap, which costs far more
-performance than the extra heap buys. 12G leaves the rest breathing room. On a
-32 GB host, `HEAP=24G` is the equivalent number.
+outside it, and the OS page cache is what keeps region-file reads fast. Giving
+the heap everything the box has drives it into swap, which costs far more
+performance than the extra heap buys. On a machine with exactly 2 GB, use
+`HEAP=1400M`; on a 4 GB one, `HEAP=3G` is comfortable.
 
-`start.sh` uses [Aikar's flags](https://docs.papermc.io/paper/aikar-flags) in the
->12 GB shape: G1GC with a large young generation, so a big heap collects in many
-short pauses instead of one long freeze.
+`start.sh` uses [Aikar's flags](https://docs.papermc.io/paper/aikar-flags), and
+picks between their two shapes from the heap size you set: below 12 GB a smaller
+young generation and 8M regions, above it the large-heap variant. Changing
+`HEAP` therefore cannot leave the GC mistuned.
 
-`server.properties` is commented throughout — `view-distance` is the setting with
-by far the largest effect on how many players you can hold.
+`server.properties` is commented throughout. The three settings that decide
+whether 2 GB is enough are `view-distance` (8), `simulation-distance` (6) and
+`max-players` (20) — raise any of them and raise `HEAP` with it.
 
 ## World and player limits
 
-`max-players` is 100 and the world border is left at the engine maximum
-(29,999,984 blocks), so neither the player count nor the world size is
-artificially capped. The real limits are your CPU for concurrent players and
-your disk for world size — a heavily explored world grows to tens of GB.
+`max-players` is 20, which is what a 2 GB heap holds with room to spare — each
+player loads their own chunks, so the ceiling is memory rather than a setting.
+Raising it without raising `HEAP` turns "server is full" into
+`OutOfMemoryError`, which is worse.
+
+The world border is left at the engine maximum (29,999,984 blocks), so world
+size is capped only by your disk — a heavily explored world grows to tens of GB.
 
 ## Security: this server is cracked
 
@@ -128,11 +134,17 @@ Full instructions, including firewall rules and what to do without a public IP:
 **[deploy/BEGINNER.md](deploy/BEGINNER.md)** instead, which assumes nothing.
 For free 24/7 hosting, see **[deploy/FREE-ORACLE.md](deploy/FREE-ORACLE.md)**.
 
-Want to use Render specifically? Render only proxies HTTP(S), never raw TCP or
-UDP, so this repo also ships a Docker build that tunnels Minecraft's TCP inside
-a WebSocket to get through that limit. It needs a paid Render plan to stay up,
-a client program every player must run, and drops voice chat entirely (no UDP
-tunnel exists here). Full explanation and setup: **[deploy/RENDER.md](deploy/RENDER.md)**.
+Cannot open port 25565? **[deploy/TCP.md](deploy/TCP.md)** lists every way to get
+real TCP working — router forwarding, playit.gg, an SSH reverse tunnel through a
+cheap VPS ([`deploy/tcp-tunnel.sh`](deploy/tcp-tunnel.sh) does that one for you),
+ngrok, Tailscale — with what each costs and which ones need nothing installed on
+players' machines. Start there before any of the tunnels below.
+
+Want to use Render specifically? Render only proxies HTTP(S), never raw TCP, so
+this repo also ships a Docker build that tunnels Minecraft's TCP inside a
+WebSocket to get through that limit. It needs a paid Render plan to stay up and
+a client program every player must run. Full explanation and setup:
+**[deploy/RENDER.md](deploy/RENDER.md)**.
 
 Using Hostinger? Their **web hosting** plans cannot run the game — no Java, no
 raw TCP port, nowhere near the RAM — but they run Node.js well, so this repo
@@ -161,12 +173,11 @@ hosting, a VPS next to the game server, or your own machine. Details in
 
 ```
 setup.sh                        one-time install / re-run to update
-start.sh                        launcher with the 16 GB JVM flags
+start.sh                        launcher, picks JVM flags from HEAP
 server.properties               server config, commented
-config/voicechat/               Simple Voice Chat settings
 mods/                           server-side mods
 client-mods/                    mods players install themselves
-deploy/                         systemd units + domain and host setup
+deploy/                         systemd units, TCP options, host setup
 web/                            Node.js status page, JSON API and tunnel
 ```
 

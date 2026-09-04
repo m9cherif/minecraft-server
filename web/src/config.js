@@ -74,8 +74,6 @@ const config = {
     // Shown to players. Defaults to host:port, minus the port when it is 25565.
     address: str('MC_ADDRESS', ''),
     name: str('MC_NAME', 'Minecraft'),
-    // Simple Voice Chat's UDP port, shown as a reminder on the page. 0 hides it.
-    voicePort: int('MC_VOICE_PORT', 24454),
   },
 
   status: {

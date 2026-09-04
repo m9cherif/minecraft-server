@@ -4,7 +4,8 @@ This directory holds what you need to keep the server up permanently on a machin
 you control, and to put it behind your own domain name.
 
 You need a host that stays on: a home machine that never sleeps, a VPS, or a
-dedicated box. 16 GB RAM, Java 25, and a public IP (see
+dedicated box. 3 GB RAM (the default 2 GB heap plus room for the JVM), Java 25,
+and a public IP (see
 [No public IP](#no-public-ip) if you are behind CGNAT).
 
 ## 1. Install
@@ -48,11 +49,11 @@ To run server commands (`/op`, `/whitelist add`) without a console, enable RCON 
 
 ```bash
 sudo ufw allow 25565/tcp   # Minecraft
-sudo ufw allow 24454/udp   # Simple Voice Chat
 ```
 
-The voice port is **UDP** and is the single most common thing people forget. If
-players connect but voice chat says it cannot connect, this is why.
+One port is all the server needs. Opening it in `ufw` is only half the job on a
+cloud host — the provider's own security group has to allow it too, and that is
+the step people miss. If you cannot open it at all, see **[TCP.md](TCP.md)**.
 
 ## 4. Point your domain at it
 
@@ -91,12 +92,6 @@ dig +short mc.example.com
 dig +short SRV _minecraft._tcp.example.com
 ```
 
-**Voice chat needs no DNS record.** Simple Voice Chat tells the client which UDP
-port to use during the handshake, so it follows the game connection automatically.
-Just keep 24454/udp open on the same host. If your host's public address differs
-from what the server sees (NAT, a proxy), set the reachable address in
-`config/voicechat/voicechat-server.properties`.
-
 If your IP is dynamic, either ask your ISP for a static one or run a dynamic-DNS
 updater against the `mc` record — otherwise the domain breaks whenever the IP
 changes.
@@ -108,13 +103,15 @@ there is nothing routable to point at. Two options:
 
 - **A VPS.** The reliable answer. Point the A record at it and run the server
   there.
-- **A tunnel** such as playit.gg or ngrok. These give you a hostname without port
-  forwarding. Check the tunnel forwards **UDP** before relying on it, or voice
-  chat will not work even though the game connects. With most tunnels you get
-  their hostname, and your own domain can only CNAME to it — the SRV record above
-  should then target the tunnel hostname.
+- **A tunnel** such as playit.gg, or an SSH reverse tunnel through a cheap VPS
+  with [`tcp-tunnel.sh`](tcp-tunnel.sh). Both give you a reachable address
+  without port forwarding, and players join with an ordinary client. With a
+  third-party tunnel you get their hostname, and your own domain can only CNAME
+  to it — the SRV record above should then target the tunnel hostname.
 - **Tailscale** works well if the server is only for friends: no ports exposed at
   all, but everyone has to be on your tailnet.
+
+All of these, ranked, with the exact setup for each: **[TCP.md](TCP.md)**.
 
 ## Before you expose it
 

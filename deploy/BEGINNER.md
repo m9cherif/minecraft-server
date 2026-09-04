@@ -18,10 +18,11 @@ Go to [Hetzner Cloud](https://www.hetzner.com/cloud) (cheapest good option),
 [Contabo](https://contabo.com/) or [OVH](https://www.ovhcloud.com/), make an
 account, and create a server with:
 
-- **RAM: 16 GB** — this is the important one
+- **RAM: 4 GB** — this is the important one. The server is tuned for a 2 GB
+  heap, and the rest is for the JVM and the operating system
 - **CPU: 4+ cores.** Minecraft mostly uses one core hard, so a faster core beats
   more cores
-- **Disk: 80 GB+** — worlds grow over time
+- **Disk: 40 GB+** — worlds grow over time
 - **Image: Ubuntu 24.04**
 - **Location:** whichever is closest to you and your players — this decides ping
 
@@ -74,8 +75,8 @@ chown -R minecraft:minecraft /opt/minecraft-server
 sudo -u minecraft /opt/minecraft-server/setup.sh
 ```
 
-That downloads Fabric, Fabric API and Simple Voice Chat. Takes a minute or two.
-Veinminer is already included.
+That downloads Fabric and Fabric API. Takes a minute or two. Veinminer is
+already included.
 
 ## Step 5 — Make it run 24/7
 
@@ -110,15 +111,15 @@ systemctl stop minecraft-server       # stop it (saves the world first)
 ```bash
 ufw allow OpenSSH
 ufw allow 25565/tcp
-ufw allow 24454/udp
 ufw --force enable
 ```
 
 `ufw allow OpenSSH` must come first, or you lock yourself out of your own server.
+The second is Minecraft, and it is the only port the server needs.
 
-The second is Minecraft. The third is voice chat — it is **UDP**, and forgetting
-it is the single most common reason voice chat does not work while the game
-connects fine.
+Many providers have a **second** firewall in their web panel, separate from
+`ufw` — Hetzner and OVH both do. Open 25565/tcp there too, or the port stays
+shut no matter what `ufw` says.
 
 ## Step 7 — Test before touching DNS
 
@@ -167,9 +168,6 @@ dig +short SRV _minecraft._tcp.example.com
 ```
 
 The first should print your IP. Now players can join at **`example.com`**.
-
-Voice chat needs no DNS record — the server tells each client which port to use
-automatically. Just keep 24454/udp open.
 
 ## Step 9 — Make yourself admin, and lock the door
 
@@ -226,8 +224,8 @@ Type `exit` (or press Ctrl+D) when done.
 Everyone joining needs, for Minecraft **26.2**:
 
 1. **Fabric loader** — https://fabricmc.net/use/installer
-2. **Fabric API**, **Veinminer** and **Simple Voice Chat** in their own mods
-   folder — without these, vein mining and voice chat will not work
+2. **Fabric API** and **Veinminer** in their own mods folder — without these,
+   vein mining will not work
 3. Optionally **Meteor Client**, from the `client-mods/` folder of this repo
 
 Their mods folder:
@@ -246,19 +244,20 @@ Look for errors: `journalctl -u minecraft-server -n 50`.
 check `ufw status`. Also check your provider's own firewall in their web panel;
 Hetzner and OVH have one separate from `ufw`.
 
-**Game works, voice chat says it cannot connect.** Port 24454/udp is not open.
-It is UDP, not TCP.
-
 **Domain does not work but the IP does.** DNS has not propagated — wait longer.
 Check the A record points at the right IP.
 
-**Server keeps restarting.** Usually out of memory. Check with `free -g` that the
-machine really has 16 GB; if it has less, lower the heap: edit
-`/etc/systemd/system/minecraft-server.service`, change `Environment=HEAP=12G` to
-something smaller, then `systemctl daemon-reload && systemctl restart minecraft-server`.
+**Server keeps restarting.** Usually out of memory. Check with `free -m` how much
+the machine really has. The heap needs roughly a gigabyte less than the total:
+edit `/etc/systemd/system/minecraft-server.service`, change `Environment=HEAP=2G`
+to `1400M` on a 2 GB box, then
+`systemctl daemon-reload && systemctl restart minecraft-server`.
 
 **Laggy with several players.** Lower `view-distance` in `server.properties` from
-12 to 8, and restart.
+8 to 6, and `simulation-distance` from 6 to 4, then restart.
+
+**Nothing you try makes the port reachable.** Some connections cannot be opened
+at all — see [TCP.md](TCP.md) for the ways around that.
 
 ## Back up your world
 

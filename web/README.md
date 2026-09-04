@@ -71,9 +71,11 @@ Players run the client half:
 node bin/mc-tunnel-client.js wss://play.example.com/YOUR_TUNNEL_SECRET
 ```
 
-...then join at `127.0.0.1` in Minecraft. Full setup, and the costs — voice chat
-does not survive it, and every player needs the client — are in
+...then join at `127.0.0.1` in Minecraft. Full setup, and the cost — every
+player needs the client — is in
 [../deploy/HOSTINGER.md](../deploy/HOSTINGER.md#b-adding-the-tunnel).
+[../deploy/TCP.md](../deploy/TCP.md) covers the alternatives that need no
+client at all, which is what most people want.
 
 Two limits keep the public endpoint from being an open proxy: the destination is
 fixed by configuration and never comes from the client, and the URL must carry

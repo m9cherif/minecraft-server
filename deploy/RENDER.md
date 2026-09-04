@@ -1,8 +1,11 @@
 # Running on Render (Docker + WebSocket tunnel)
 
 Render is an HTTP hosting platform. It has no way to expose Minecraft's raw TCP
-port, or a second UDP port for voice chat, to the public internet — that is a
-platform limit, not a setting to enable.
+port to the public internet — that is a platform limit, not a setting to enable.
+
+**Read [TCP.md](TCP.md) first.** Almost everything on that list is better than
+this: real TCP, no per-player client, and several of them free. This page is for
+the case where HTTP hosting is genuinely all you have.
 
 This setup works around the TCP limit by tunneling Minecraft's traffic inside a
 WebSocket connection, which Render does proxy (it is an HTTP upgrade). Every
@@ -11,9 +14,6 @@ still just connects to `localhost`.
 
 **Read this before using it — it is a real workaround, not a free lunch:**
 
-- **No voice chat.** Simple Voice Chat needs its own UDP port. There is no
-  tunnel for that here, so it is left out of this build entirely. Veinminer and
-  Fabric API are included; both are TCP-only.
 - **Every player must run a small extra program.** Not just you — everyone who
   joins. If that is a dealbreaker, use [deploy/BEGINNER.md](BEGINNER.md) on a
   normal VPS instead, which needs nothing extra on the player's side.
@@ -28,10 +28,11 @@ still just connects to `localhost`.
   included — is wiped on every deploy and every restart.
 
 Once a paid plan and a Disk are in the picture, the honest comparison is a
-$5-10/month VPS running this repo directly: no tunnel, no per-player client, no
-added latency, and voice chat works. This Render path exists because it was
-asked for, not because it is the better option — see
-[deploy/README.md](README.md) for that comparison.
+$5/month VPS running this repo directly — or a free playit.gg tunnel in front of
+a machine you already own: no per-player client and no added hop. This Render
+path exists because it was asked for, not because it is the better option — see
+[TCP.md](TCP.md) for the alternatives and [deploy/README.md](README.md) for the
+VPS setup.
 
 ## What's already done
 

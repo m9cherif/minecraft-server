@@ -1,7 +1,7 @@
 # Free 24/7 hosting on Oracle Cloud
 
 Oracle's **Always Free** tier gives you a permanently free server with **4 CPUs and
-24 GB RAM** — more than this setup needs. It is not a trial and does not expire.
+24 GB RAM** — far more than this setup needs, since it is tuned for a 2 GB heap. It is not a trial and does not expire.
 
 Three things to know before you start:
 
@@ -78,21 +78,20 @@ separate places**, and you must open both or nothing works.
 | Source CIDR | IP Protocol | Destination Port |
 | --- | --- | --- |
 | `0.0.0.0/0` | TCP | `25565` |
-| `0.0.0.0/0` | UDP | `24454` |
 
 **4b — On the server itself** (in your SSH window):
 
 ```bash
 sudo iptables -I INPUT -p tcp --dport 25565 -j ACCEPT
-sudo iptables -I INPUT -p udp --dport 24454 -j ACCEPT
 sudo netfilter-persistent save
 ```
 
 Oracle's Ubuntu images ship with firewall rules that block everything except SSH,
 which is why the website rules alone are not enough.
 
-The UDP one is voice chat. Miss it and the game will connect fine while voice
-chat fails — the most common complaint with this setup.
+Doing only one of the two is the most common reason this setup "does not work":
+the website rule without the `iptables` rule, or the other way round, both look
+identical from outside — a connection that times out.
 
 ## Step 5 — Install the server
 
@@ -120,7 +119,9 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now minecraft-server
 ```
 
-You have 24 GB here, so raise the heap from the 12 G default:
+The default heap is 2 GB, which this machine has far more than. Raise it — a
+24 GB box comfortably runs a 16 GB heap, and `start.sh` switches to the
+large-heap GC flags on its own above 12 GB:
 
 ```bash
 sudo systemctl edit minecraft-server
@@ -190,8 +191,8 @@ What works:
 - **Just retry.** Capacity frees up constantly. Try several times a day.
 - **Try a different availability domain** if your region has more than one.
 - **Try 1 OCPU / 6 GB first.** Smaller requests succeed far more often, and you
-  can resize up later. The server runs on 6 GB — set `HEAP=4G` — just with fewer
-  players and a lower view distance.
+  can resize up later. The server runs fine on 6 GB — `HEAP=4G` — and the
+  repo's 2 GB defaults work unchanged on even the smallest instance.
 - **Wait a few days.** Availability changes a lot week to week.
 
 If your region simply never has capacity, a new account in a quieter region is the

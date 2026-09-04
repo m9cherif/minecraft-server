@@ -1,0 +1,42 @@
+[Unit]
+Description=Minecraft TCP reverse tunnel to a public relay
+Documentation=https://github.com/m9cherif/minecraft-server
+After=network-online.target minecraft-server.service
+Wants=network-online.target
+
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=minecraft
+Group=minecraft
+WorkingDirectory=/opt/minecraft-server
+
+# The relay is the machine with the public IP. The minecraft user needs an SSH
+# key on it — generate one with:
+#   sudo -u minecraft ssh-keygen -t ed25519 -f /opt/minecraft-server/.ssh/id_ed25519
+# and add the .pub to the relay's authorized_keys.
+Environment=RELAY=minecraft@relay.example.com
+Environment=RELAY_PORT=25565
+Environment=LOCAL_PORT=25565
+Environment=SSH_KEY=/opt/minecraft-server/.ssh/id_ed25519
+ExecStart=/opt/minecraft-server/deploy/tcp-tunnel.sh
+
+# The script reconnects on its own, so systemd only has to handle it exiting
+# outright — which it does not, except on SIGTERM.
+Restart=always
+RestartSec=10
+
+KillSignal=SIGTERM
+TimeoutStopSec=15
+SuccessExitStatus=0 143
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

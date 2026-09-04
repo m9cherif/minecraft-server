@@ -17,7 +17,6 @@ function escapeHtml(value) {
 function renderPage(config) {
   const name = escapeHtml(config.mc.name);
   const address = escapeHtml(config.mc.address);
-  const voicePort = config.mc.voicePort;
 
   return `<!doctype html>
 <html lang="en">
@@ -121,17 +120,6 @@ function renderPage(config) {
     <h2>Online now</h2>
     <ul id="sample" class="players"></ul>
   </section>
-
-  ${
-    voicePort
-      ? `<section class="card">
-    <h2>Voice chat</h2>
-    <p class="motd" style="margin-top:0">Simple Voice Chat runs on UDP port <code>${voicePort}</code>.
-    It is a separate port from the game and needs its own forward — if you can play but voice
-    reports “unable to connect”, that is the reason.</p>
-  </section>`
-      : ''
-  }
 
   <footer>
     <span id="updated">—</span> · <button id="refresh" type="button">Refresh</button>

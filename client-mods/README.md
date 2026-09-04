@@ -20,9 +20,7 @@ Each player who wants it installs it themselves:
 3. Launch Minecraft using the Fabric profile.
 
 Meteor bundles the Fabric API pieces it needs, so a client running only Meteor
-does not need a separate Fabric API download — but the client **does** need
-Simple Voice Chat installed to use voice chat on this server, and that one is a
-normal Modrinth download.
+does not need a separate Fabric API download.
 
 Note that Meteor is a utility/cheat client. Its movement, combat and world
 modules are exactly what anti-cheat looks for. It is fine on your own server;

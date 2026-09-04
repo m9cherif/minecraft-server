@@ -27,7 +27,7 @@ function baseConfig(overrides = {}) {
   return {
     port: 0,
     host: '127.0.0.1',
-    mc: { host: '127.0.0.1', port: 25565, address: 'play.example.com', name: 'Test', voicePort: 24454 },
+    mc: { host: '127.0.0.1', port: 25565, address: 'play.example.com', name: 'Test' },
     status: { cacheMs: 10000, timeoutMs: 2000 },
     tunnel: {
       enabled: false,

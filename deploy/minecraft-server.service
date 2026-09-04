@@ -18,7 +18,9 @@ WorkingDirectory=/opt/minecraft-server
 # two supervisors fight each other and defeat the rate limiting below. With this
 # off, start.sh execs java, making the JVM the main PID so SIGTERM reaches it.
 Environment=RESTART_ON_CRASH=false
-Environment=HEAP=12G
+# 2G suits a 3-4 GB machine. Raise it on a bigger box (start.sh switches to the
+# large-heap GC flags above 12G on its own); on a 2 GB box use 1400M.
+Environment=HEAP=2G
 ExecStart=/opt/minecraft-server/start.sh
 
 # 24/7: come back from crashes, OOM kills and clean stops alike, and start on boot.

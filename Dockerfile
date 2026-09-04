@@ -27,9 +27,8 @@ RUN get() { curl -fSL $CURL_RETRY "$@"; } \
       -o server.jar
 
 # ------------------------------------------------------------------ mods
-# TCP-only mods. Simple Voice Chat is deliberately not here: it needs a
-# second UDP port, and Render's router only ever proxies HTTP(S)/WebSocket,
-# never raw UDP. See render-entrypoint.sh for how the TCP side gets through.
+# Render's router only ever proxies HTTP(S)/WebSocket, never raw TCP. See
+# render-entrypoint.sh for how the TCP side gets through.
 RUN mkdir -p mods
 COPY mods/veinminer-*.jar mods/
 # TEMPORARY: five jq-based attempts to parse Modrinth's version list all hit

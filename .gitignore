@@ -7,7 +7,7 @@ versions/
 mods/*.tmp
 mods/.installed-*
 
-# Mods pulled by setup.sh (Fabric API, Simple Voice Chat).
+# Mods pulled by setup.sh (Fabric API).
 # The two mods that ship with this repo are force-added below.
 mods/*.jar
 !mods/veinminer-*.jar
@@ -26,9 +26,8 @@ usercache.json
 usernamecache.json
 whitelist.json
 
-# Generated configs (config/voicechat is tracked on purpose)
-config/*
-!config/voicechat/
+# Generated configs
+config/
 
 # Node.js companion app (web/)
 node_modules/

@@ -5,9 +5,13 @@ cd "$(dirname "$0")"
 
 # Heap. Aikar's flags want Xms == Xmx: the GC is tuned for a fixed heap, and
 # letting it grow just means paying to re-expand what you already reserved.
-# On a 16 GB machine leave a few GB for the OS, page cache and the JVM's own
-# off-heap use — 12G is the safe number, raise it only on a bigger box.
-HEAP="${HEAP:-12G}"
+#
+# 2G is the default because it is what small hosts actually have. The heap is
+# not the JVM's whole footprint — metaspace, GC structures, thread stacks and
+# network buffers live outside it, and the OS still needs page cache to keep
+# region-file reads fast — so 2G of heap wants roughly 3 GB of machine. On a
+# 2 GB box set HEAP=1400M instead; on a bigger one, raise it.
+HEAP="${HEAP:-2G}"
 JAR="${JAR:-server.jar}"
 RESTART_ON_CRASH="${RESTART_ON_CRASH:-true}"
 
@@ -16,9 +20,25 @@ if [ ! -f "$JAR" ]; then
   exit 1
 fi
 
-# Aikar's flags (https://docs.papermc.io/paper/aikar-flags), >12 GB variant:
-# a larger young gen and 16M regions, so big heaps collect in short pauses
-# instead of one long stop-the-world.
+# Heap size in MB, so the right flag set can be picked below. Accepts the
+# forms java does: 2G, 2048M, 2097152K, or a plain byte count.
+heap_mb() {
+  local value="${1^^}"
+  case "$value" in
+    *G) echo $(( ${value%G} * 1024 )) ;;
+    *M) echo "${value%M}" ;;
+    *K) echo $(( ${value%K} / 1024 )) ;;
+    *)  echo $(( value / 1024 / 1024 )) ;;
+  esac
+}
+HEAP_MB=$(heap_mb "$HEAP")
+
+# Aikar's flags (https://docs.papermc.io/paper/aikar-flags). They come in two
+# shapes and using the wrong one costs real performance: above 12 GB a larger
+# young generation and 16M regions keep pauses short, while below it the same
+# settings starve the old generation and cause constant mixed collections.
+# The threshold is picked from HEAP rather than hardcoded, so changing the heap
+# does not quietly leave the flags mistuned.
 JVM_FLAGS=(
   -Xms"$HEAP" -Xmx"$HEAP"
   -XX:+UseG1GC
@@ -27,13 +47,8 @@ JVM_FLAGS=(
   -XX:+UnlockExperimentalVMOptions
   -XX:+DisableExplicitGC
   -XX:+AlwaysPreTouch
-  -XX:G1NewSizePercent=40
-  -XX:G1MaxNewSizePercent=50
-  -XX:G1HeapRegionSize=16M
-  -XX:G1ReservePercent=15
   -XX:G1HeapWastePercent=5
   -XX:G1MixedGCCountTarget=4
-  -XX:InitiatingHeapOccupancyPercent=20
   -XX:G1MixedGCLiveThresholdPercent=90
   -XX:G1RSetUpdatingPauseTimePercent=5
   -XX:SurvivorRatio=32
@@ -43,8 +58,26 @@ JVM_FLAGS=(
   -Daikars.new.flags=true
 )
 
+if [ "$HEAP_MB" -ge 12288 ]; then
+  JVM_FLAGS+=(
+    -XX:G1NewSizePercent=40
+    -XX:G1MaxNewSizePercent=50
+    -XX:G1HeapRegionSize=16M
+    -XX:G1ReservePercent=15
+    -XX:InitiatingHeapOccupancyPercent=20
+  )
+else
+  JVM_FLAGS+=(
+    -XX:G1NewSizePercent=30
+    -XX:G1MaxNewSizePercent=40
+    -XX:G1HeapRegionSize=8M
+    -XX:G1ReservePercent=20
+    -XX:InitiatingHeapOccupancyPercent=15
+  )
+fi
+
 run() {
-  echo "==> Starting server with $HEAP heap"
+  echo "==> Starting server with $HEAP heap (${HEAP_MB} MB)"
   java "${JVM_FLAGS[@]}" -jar "$JAR" nogui
 }
 

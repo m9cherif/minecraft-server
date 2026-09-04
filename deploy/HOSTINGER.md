@@ -2,8 +2,8 @@
 
 This repo has two halves now:
 
-- the **Fabric server** — Java, `setup.sh` / `start.sh`, wants 12 GB of heap and
-  raw TCP port 25565 plus UDP 24454;
+- the **Fabric server** — Java, `setup.sh` / `start.sh`, wants a 2 GB heap and
+  raw TCP port 25565;
 - the **Node.js app** in [`web/`](../web/) — an HTTP service that shows the
   server's live status, exposes it as JSON, and can optionally tunnel the game
   through a WebSocket.
@@ -21,15 +21,19 @@ Node.js applications behind a shared reverse proxy. Concretely:
 | Run a Node.js HTTP app | yes | yes |
 | Listen on one port, chosen by the platform (`$PORT`) | yes | you choose |
 | Accept raw TCP on port 25565 | **no** | yes |
-| Accept UDP on 24454 (voice chat) | **no** | yes |
 | Java 25 runtime | **no** | yes, you install it |
-| 12 GB of RAM for one process | **no** | on a large enough plan |
+| 2 GB of RAM for one process | **no** | yes |
 
 So: **a Minecraft Java server cannot run on Hostinger web hosting.** Not with
-Node, not with a tunnel, not with any configuration — there is no JVM, no second
-port, and the resource limits are an order of magnitude below what the game
-needs. Hostinger sells VPS plans (and a dedicated game-hosting product) for
-exactly that reason; a VPS is where the Java half belongs.
+Node, not with a tunnel, not with any configuration — there is no JVM, no raw
+port, and the resource limits sit below even the 2 GB this repo is tuned for.
+Hostinger sells VPS plans (and a dedicated game-hosting product) for exactly
+that reason; a VPS is where the Java half belongs.
+
+If what you actually need is a reachable TCP port and web hosting was just the
+thing you happened to have, **[TCP.md](TCP.md)** is the better page: it lists
+every way to get real TCP, several of them free, none of which need players to
+install anything.
 
 What web hosting *is* genuinely good for here is the Node app: a status page on
 your own domain, with HTTPS and a certificate you do not have to manage.
@@ -44,13 +48,13 @@ and publishes the result. Nothing about how players join changes.
 **B. Status page plus tunnel.** Same as A, but the Node app also forwards the
 game's TCP through a WebSocket, so players connect to your Hostinger domain on
 port 443 instead of to the game host directly. Useful when the game host has no
-public IP, no open port, or an address you would rather not publish. Costs:
-every player runs a small client program, and **voice chat stops working**
-(it is UDP; nothing here carries UDP).
+public IP, no open port, or an address you would rather not publish. The cost is
+that every player runs a small client program — which is why
+**[TCP.md](TCP.md)** is worth reading first; most people are better served by
+playit.gg or an SSH reverse tunnel, which need nothing on the player's side.
 
 **C. Everything on a Hostinger VPS.** Java server and Node app on one box, no
-tunnel, voice chat intact. This is the setup to pick if you are buying hosting
-now.
+tunnel at all. This is the setup to pick if you are buying hosting now.
 
 ## A. Status page on web hosting
 
@@ -107,8 +111,6 @@ host needs no extra binary.
 
 Understand the trade-offs first:
 
-- **Voice chat stops working.** Simple Voice Chat needs UDP 24454, and no part
-  of this tunnels UDP. Players keep the mod installed; it just cannot connect.
 - **Every player runs a client program.** They cannot join with a plain
   Minecraft client — the address they type points at their own machine.
 - **All traffic goes through your web host.** Latency goes up by the detour, and
@@ -159,8 +161,8 @@ Leave it running while playing; Ctrl-C stops it.
 
 A VPS is a normal Linux box, so the main [deploy/README.md](README.md) applies
 unchanged — install Java 25, run `setup.sh`, install the systemd unit, open
-25565/TCP and 24454/UDP in the firewall. The Node app is then a second, tiny
-service alongside it:
+25565/TCP in the firewall. The Node app is then a second, tiny service
+alongside it:
 
 ```bash
 sudo cp deploy/minecraft-web.service /etc/systemd/system/
@@ -203,5 +205,5 @@ wrong URL gets, by design.
 app and the app could not reach the game server — check `TUNNEL_TARGET_HOST` and
 `TUNNEL_TARGET_PORT` from the web host's point of view, not yours.
 
-**Voice chat cannot connect while tunnelling.** Expected, and not fixable here.
-Voice needs a direct UDP path to the game server.
+**You would rather players did not need the client program.** Then the tunnel is
+the wrong tool — see [TCP.md](TCP.md) for the options that give real TCP.
