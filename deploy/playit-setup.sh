@@ -114,9 +114,17 @@ else
 CLAIM
 
   # `claim exchange` blocks until the browser approval lands, then prints the
-  # permanent secret key. Its output goes to the terminal as well as into the
-  # variable, so a hang is visible rather than looking like a frozen script.
-  EXCHANGE_OUTPUT=$("$PLAYIT" claim exchange "$CLAIM_CODE" | tee /dev/tty)
+  # permanent secret key. Mirror its output to the terminal so a wait is
+  # visible rather than looking like a frozen script — but only when there is
+  # a terminal to mirror to. Piping unconditionally through `tee /dev/tty`
+  # kills the script under `set -o pipefail` the moment it is run without one
+  # (`ssh host ./playit-setup.sh`, a cron entry), and the failure gives no hint
+  # that a missing tty was the cause.
+  if [ -t 1 ] && [ -w /dev/tty ]; then
+    EXCHANGE_OUTPUT=$("$PLAYIT" claim exchange "$CLAIM_CODE" | tee /dev/tty)
+  else
+    EXCHANGE_OUTPUT=$("$PLAYIT" claim exchange "$CLAIM_CODE")
+  fi
   SECRET_KEY=$(grep -oE '[0-9a-f]{32,}' <<<"$EXCHANGE_OUTPUT" | head -1)
 
   if [ -z "$SECRET_KEY" ]; then

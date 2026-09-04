@@ -7,11 +7,13 @@
 const assert = require('assert');
 const net = require('net');
 const { execFile } = require('child_process');
+const { EventEmitter } = require('events');
 const path = require('path');
 
 const { pingServer } = require('../src/ping');
 const { encodeFrame, FrameParser, OPCODE, acceptValue } = require('../src/ws');
 const { createServer } = require('../src/server');
+const { attachTunnel } = require('../src/tunnel');
 const { startFakeMinecraft } = require('./fake-minecraft');
 
 const tests = [];
@@ -217,6 +219,72 @@ test('the tunnel carries bytes to the target and back', async () => {
   });
 
   await close(upstream);
+});
+
+test('the tunnel delivers bytes sent in the upgrade packet, in order', async () => {
+  // A client may pipeline: its first WebSocket frame rides in the same packet
+  // as the GET, so Node hands it over as `head` rather than a 'data' event.
+  // Those bytes start the stream — delivered after later ones, the connection
+  // is corrupt in a way that looks like a Minecraft bug, not a tunnel bug.
+  //
+  // Driving the upgrade by hand rather than over a socket is what makes this
+  // deterministic: against a real localhost upstream the connection completes
+  // before a second write can arrive, so the ordering never gets tested. Here
+  // the later bytes are delivered synchronously, while upstream is still
+  // connecting — exactly the window the bug lives in.
+  const seen = [];
+  const upstream = net.createServer((s) => s.on('data', (c) => seen.push(c)));
+  const upstreamPort = await listen(upstream);
+
+  const server = new EventEmitter();
+  attachTunnel(
+    server,
+    {
+      secret: 'a-secret-long-enough',
+      targetHost: '127.0.0.1',
+      targetPort: upstreamPort,
+      maxClients: 10,
+      idleTimeoutMs: 5000,
+    },
+    quietLog
+  );
+
+  // Minimal stand-in for the upgraded socket: the tunnel only reads from it
+  // through events and writes back frames we do not assert on here.
+  const socket = new EventEmitter();
+  Object.assign(socket, {
+    write: () => true,
+    destroy() { socket.emit('close'); },
+    end() { socket.emit('close'); },
+    pause() {}, resume() {}, setNoDelay() {}, setTimeout() {},
+  });
+
+  const req = {
+    url: '/a-secret-long-enough',
+    headers: {
+      upgrade: 'websocket',
+      'sec-websocket-version': '13',
+      'sec-websocket-key': Buffer.from('0123456789abcdef').toString('base64'),
+    },
+  };
+
+  server.emit('upgrade', req, socket, encodeFrame(OPCODE.BINARY, Buffer.from('FIRST'), true));
+  // Still inside the same tick — upstream cannot have connected yet.
+  socket.emit('data', encodeFrame(OPCODE.BINARY, Buffer.from('SECOND'), true));
+
+  await new Promise((resolve) => {
+    const started = Date.now();
+    const poll = setInterval(() => {
+      if (Buffer.concat(seen).toString().length >= 11 || Date.now() - started > 3000) {
+        clearInterval(poll);
+        resolve();
+      }
+    }, 20);
+  });
+
+  socket.destroy();
+  await close(upstream);
+  assert.equal(Buffer.concat(seen).toString(), 'FIRSTSECOND', 'head must arrive before later data');
 });
 
 test('the tunnel refuses a wrong secret with a plain 404', async () => {

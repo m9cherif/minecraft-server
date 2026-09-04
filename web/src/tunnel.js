@@ -128,9 +128,18 @@ function attachTunnel(server, config, log = console) {
       },
     });
 
+    // `head` is whatever arrived in the same packet as the upgrade request, so
+    // it is the first of the stream and must reach the parser before anything
+    // the 'data' handler below delivers. Pushing it here — synchronously,
+    // before that handler exists — is what guarantees the order: doing it from
+    // upstream's 'connect' callback instead leaves a window in which a client
+    // that writes immediately after the request gets its bytes parsed first,
+    // silently corrupting the stream. Writing to a still-connecting socket is
+    // safe; Node buffers until the connection is up.
+    if (head && head.length) parser.push(head);
+
     upstream.on('connect', () => {
       log.info?.(`[tunnel] #${id} open -> ${targetHost}:${targetPort} — ${active} active`);
-      if (head && head.length) parser.push(head); // Bytes that arrived with the upgrade.
     });
 
     upstream.on('drain', () => socket.resume());
