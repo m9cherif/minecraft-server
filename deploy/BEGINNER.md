@@ -257,7 +257,9 @@ to `1400M` on a 2 GB box, then
 8 to 6, and `simulation-distance` from 6 to 4, then restart.
 
 **Nothing you try makes the port reachable.** Some connections cannot be opened
-at all — see [TCP.md](TCP.md) for the ways around that.
+at all — home internet behind CGNAT is the usual case. The free way around it is
+one command on the server: `sudo ./deploy/playit-setup.sh`. Full list of options
+in [TCP.md](TCP.md).
 
 ## Back up your world
 

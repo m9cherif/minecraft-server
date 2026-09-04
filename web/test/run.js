@@ -247,6 +247,30 @@ test('upgrades are dropped outright when the tunnel is off', async () => {
 
 // ------------------------------------------------------------------- cli
 
+test('mc-ping reports a reachable server and exits 0', async () => {
+  const fake = await startFakeMinecraft(STATUS);
+  const script = path.join(__dirname, '..', 'bin', 'mc-ping.js');
+  const { code, stdout } = await new Promise((resolve) => {
+    execFile(process.execPath, [script, `127.0.0.1:${fake.port}`], (err, out) =>
+      resolve({ code: err ? err.code : 0, stdout: out })
+    );
+  });
+  await fake.close();
+
+  assert.equal(code, 0, 'exit 0 means a player would get in');
+  assert.match(stdout, /ONLINE/);
+  assert.match(stdout, /3\/100 players/);
+});
+
+test('mc-ping exits 1 when nothing answers', async () => {
+  const script = path.join(__dirname, '..', 'bin', 'mc-ping.js');
+  const code = await new Promise((resolve) => {
+    // Port 1 on loopback: refused immediately, no waiting.
+    execFile(process.execPath, [script, '127.0.0.1:1'], (err) => resolve(err ? err.code : 0));
+  });
+  assert.equal(code, 1, 'usable as a health check');
+});
+
 test('the tunnel client prints usage and exits 1 on bad arguments', async () => {
   const script = path.join(__dirname, '..', 'bin', 'mc-tunnel-client.js');
   const code = await new Promise((resolve) => {

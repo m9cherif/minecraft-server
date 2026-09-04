@@ -103,11 +103,12 @@ there is nothing routable to point at. Two options:
 
 - **A VPS.** The reliable answer. Point the A record at it and run the server
   there.
-- **A tunnel** such as playit.gg, or an SSH reverse tunnel through a cheap VPS
-  with [`tcp-tunnel.sh`](tcp-tunnel.sh). Both give you a reachable address
-  without port forwarding, and players join with an ordinary client. With a
-  third-party tunnel you get their hostname, and your own domain can only CNAME
-  to it — the SRV record above should then target the tunnel hostname.
+- **A tunnel.** [`playit-setup.sh`](playit-setup.sh) sets up playit.gg (free),
+  or [`tcp-tunnel.sh`](tcp-tunnel.sh) runs an SSH reverse tunnel through a cheap
+  VPS you control. Both give you a reachable address without port forwarding,
+  and players join with an ordinary client. With a third-party tunnel you get
+  their hostname, and your own domain can only CNAME to it — the SRV record
+  above should then target the tunnel hostname.
 - **Tailscale** works well if the server is only for friends: no ports exposed at
   all, but everyone has to be on your tailnet.
 

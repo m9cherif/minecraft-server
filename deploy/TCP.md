@@ -50,17 +50,36 @@ Free, and the answer when you cannot forward a port. An agent runs on the server
 and gives you a public hostname; players type it into Minecraft and join.
 Vanilla clients, nothing installed on their side.
 
+[`playit-setup.sh`](playit-setup.sh) does the whole install on the machine
+running Minecraft:
+
 ```bash
-curl -fSL https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64 \
-  -o playit && chmod +x playit && ./playit
+sudo ./deploy/playit-setup.sh
 ```
 
-It prints a URL to claim the agent in a browser. Add a **TCP tunnel** to
-`127.0.0.1:25565`, and it hands you an address like `example.joinmc.link`.
+It installs the agent (from playit's APT repository on Debian and Ubuntu, from
+the release binary for your CPU anywhere else), links it to your account, stores
+the secret key root-only in `/etc/playit/playit.toml`, and enables
+`playit.service` so the tunnel comes back after a reboot.
 
-Run it as a service so it survives reboots — the same shape as the units in this
-directory. It also forwards UDP, which matters if you ever add a mod that needs
-it.
+Two steps are yours, and the script stops and waits at each:
+
+1. **Approve the agent.** It prints `https://playit.gg/claim/<code>` — open it,
+   sign in or make a free account, and approve. The agent belongs to your
+   account, so nobody else can do this part.
+2. **Create the tunnel.** On <https://playit.gg/account/tunnels>, add a tunnel
+   of type **Minecraft Java** (or plain TCP on port 25565) pointing at
+   `127.0.0.1:25565`. Port mappings live on their website, not in the agent.
+
+You get back an address like `yourname.joinmc.link`. Check it actually works
+before telling anyone:
+
+```bash
+node web/bin/mc-ping.js yourname.joinmc.link
+```
+
+`ONLINE` means a player would get in. Afterwards, `systemctl status playit` and
+`journalctl -u playit -f` are how you see what the tunnel is doing.
 
 The cost: your traffic passes through their network, latency goes up by the
 detour, and a free account's hostname is theirs, not yours.

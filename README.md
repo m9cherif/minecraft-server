@@ -136,9 +136,19 @@ For free 24/7 hosting, see **[deploy/FREE-ORACLE.md](deploy/FREE-ORACLE.md)**.
 
 Cannot open port 25565? **[deploy/TCP.md](deploy/TCP.md)** lists every way to get
 real TCP working — router forwarding, playit.gg, an SSH reverse tunnel through a
-cheap VPS ([`deploy/tcp-tunnel.sh`](deploy/tcp-tunnel.sh) does that one for you),
-ngrok, Tailscale — with what each costs and which ones need nothing installed on
-players' machines. Start there before any of the tunnels below.
+cheap VPS, ngrok, Tailscale — with what each costs and which ones need nothing
+installed on players' machines. Two of them are scripted:
+
+```bash
+sudo ./deploy/playit-setup.sh                    # free, no port forwarding
+RELAY=user@your-vps ./deploy/tcp-tunnel.sh       # your own relay over SSH
+```
+
+Either way, check the result before telling anyone the address:
+
+```bash
+node web/bin/mc-ping.js yourname.joinmc.link
+```
 
 Want to use Render specifically? Render only proxies HTTP(S), never raw TCP, so
 this repo also ships a Docker build that tunnels Minecraft's TCP inside a

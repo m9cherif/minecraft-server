@@ -26,8 +26,21 @@ and the HTTP layer are all written against Node's standard library, so
 `npm install` has nothing to do and cannot fail on a shared host.
 
 ```bash
-npm test                # 8 integration tests; no network access needed
+npm test                # 10 integration tests; no network access needed
 ```
+
+## Checking a server from the command line
+
+`mc-ping` speaks the real Server List Ping protocol, so a success means a player
+would get in. It is the way to check a port forward or a tunnel actually works:
+
+```bash
+node bin/mc-ping.js yourname.joinmc.link
+node bin/mc-ping.js 203.0.113.10:25577 --json
+```
+
+It exits 0 when the server answered and 1 when it did not, so it drops into a
+health check or a cron job unchanged.
 
 ## Configuration
 
@@ -93,5 +106,6 @@ src/ping.js               Minecraft Server List Ping over TCP
 src/ws.js                 RFC 6455 framing, shared by both tunnel halves
 src/tunnel.js             WebSocket -> TCP relay (server half)
 bin/mc-tunnel-client.js   TCP -> WebSocket relay (player half)
+bin/mc-ping.js            check any server address from a terminal
 test/                     integration tests + a fake Minecraft server
 ```

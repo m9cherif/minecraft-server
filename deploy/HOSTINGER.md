@@ -181,7 +181,7 @@ domain, proxying to `127.0.0.1:3000`.
 cd web
 cp .env.example .env     # edit MC_HOST at minimum
 npm start                # http://localhost:3000
-npm test                 # 8 integration tests, no network needed
+npm test                 # 10 integration tests, no network needed
 ```
 
 ## Troubleshooting
