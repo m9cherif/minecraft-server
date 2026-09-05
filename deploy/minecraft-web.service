@@ -1,0 +1,47 @@
+[Unit]
+Description=Minecraft status page and tunnel (Node.js)
+Documentation=https://github.com/m9cherif/minecraft-server
+After=network-online.target
+Wants=network-online.target
+
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=minecraft
+Group=minecraft
+WorkingDirectory=/opt/minecraft-server/web
+
+# The app reads web/.env as well, so anything not set here can live in that file
+# instead — handy for the tunnel secret, which does not belong in a unit file
+# that is world-readable under /etc.
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=MC_HOST=127.0.0.1
+Environment=MC_PORT=25565
+ExecStart=/usr/bin/node /opt/minecraft-server/web/app.js
+
+# It is a status page: if it dies, bring it back, but do not hammer.
+Restart=always
+RestartSec=5
+
+# app.js handles SIGTERM by draining in-flight requests, which takes about a
+# second. There is no world to save here, so the timeout can be short.
+KillSignal=SIGTERM
+TimeoutStopSec=15
+SuccessExitStatus=0 143
+
+# Hardening: it needs the network and its own directory, nothing else. Stricter
+# than the game server's unit because there are no mods writing to disk.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/minecraft-server/web
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target
