@@ -7,6 +7,18 @@ Cloudflare/cloudflared entirely on 2026-09-17).
 Entry point: `node server.js` → `supervisor.js` (npm start).
 
 ## Current state
+- WORLD RESET + HUB REAPPLIED (2026-09-26 ~18:47): overworld CLEARED (all
+  region files deleted, nether/end untouched) and hub7834921.schematic
+  re-staged via scripts/hub_build.py (numpy+nbtlib pip-installed) into
+  world/dimensions/minecraft/overworld/region/{r.-1.-1,r.-1.0,r.0.-1,r.0.0}.mca
+  — 100 chunks, floor top y=66, hub centered chunk (0,0). World spawn set to
+  0 67 0 via console setworldspawn. playerdata/advancements/stats WIPED so
+  every player (re)spawns at the hub; OnJoinSpawn plugin still enforces spawn
+  on every join/relog regardless of logout position/world. Backup of the old
+  world at backups/world-20260926-184212/ (31MB, gitignored). Verified: java
+  restarted cleanly, 25565 open, tunnel status OK 92ms, TPS 20/20/20.
+  GOTCHA: swapping regions while java runs corrupts state — stop java
+  (console stop), do the copy inside the watchdog's ~20s relaunch cooldown.
 - 24/7 KEEPALIVE + OOM ROOT CAUSE (2026-09-26 ~18:30): the kernel OOM-killed
   java (`Memory cgroup out of memory: Killed process 4719 (java)`) because the
   70% heap (1433MB) + node + playit exceeded the 2GB cgroup; load hit 9.7 with
