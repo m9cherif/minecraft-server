@@ -88,7 +88,6 @@ misc:
   max-tracking-combat-entries: 10240
   prevent-negative-villager-demand: false
   region-file-cache-size: 256
-  send-full-pos-for-item-entities: false
   strict-advancement-dimension-check: false
   use-alternative-luck-formula: false
   use-dimension-type-for-custom-spawners: false

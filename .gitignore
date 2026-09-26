@@ -7,3 +7,20 @@ node_modules
 server/plugin-holding/
 server/world/
 server/players/
+
+# playit.gg tunnel: the secret is a credential, never commit it or its backup.
+# PLAYIT_ADDRESS (the public host:port) IS tracked — it is the tunnel's config.
+server/playit.secret.toml
+config/playit-secret.backup.toml
+CLAIM_URL
+playit
+jre/
+
+# Scratch written while the stack runs
+*.pid
+*.log
+server/logs/
+server/console.cmds
+server/.paper/
+server/usercache.json
+server/plugins/spark/tmp/
