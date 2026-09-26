@@ -1,0 +1,2 @@
+#Accepted by setup script (https://aka.ms/MinecraftEULA)
+eula=true

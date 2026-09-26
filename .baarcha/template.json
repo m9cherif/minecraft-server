@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "slug": "node-express-standard",
+  "version": "1.0.0",
+  "skills": false,
+  "name": "Node / Express API",
+  "stack": "node-express",
+  "kind": "starter",
+  "description": "Node REST API with Express; health at /health."
+}

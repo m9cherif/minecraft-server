@@ -1,0 +1,12 @@
+version: 1
+web:
+  command: "[ -d node_modules ] || pnpm install; node server.js"
+  port: 3000
+  health_path: "/health"
+  restart_after_task: true
+env:
+  - name: PLAYIT_SECRET_KEY
+    required: false
+    hint: "playit.gg agent secret key; links this server to your free playit account so players get a public address. Leave empty and use the claim URL shown on the dashboard instead if you don't have one yet."
+build:
+  command: ""

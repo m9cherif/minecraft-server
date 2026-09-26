@@ -1,0 +1,6 @@
+name: OnJoinSpawn
+version: 1.0.0
+main: com.baarcha.onjoinspawn.OnJoinSpawn
+api-version: '1.13'
+description: Teleports every joining player to the world spawn, on every join and relog.
+author: Baarcha

@@ -1,0 +1,1 @@
+{"name": "baarcha-mc", "private": true, "version": "1.0.0", "scripts": {"start": "node supervisor.js"}, "dependencies": {"express": "^4.19.2"}}
