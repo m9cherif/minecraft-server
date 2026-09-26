@@ -7,6 +7,23 @@ Cloudflare/cloudflared entirely on 2026-09-17).
 Entry point: `node server.js` → `supervisor.js` (npm start).
 
 ## Current state
+- 24/7 KEEPALIVE + OOM ROOT CAUSE (2026-09-26 ~18:30): the kernel OOM-killed
+  java (`Memory cgroup out of memory: Killed process 4719 (java)`) because the
+  70% heap (1433MB) + node + playit exceeded the 2GB cgroup; load hit 9.7 with
+  83MB free and kswapd thrashing. Players saw "huge ping / not working" because
+  the tunnel stays up while java is dead — connect succeeds, nothing answers.
+  Fixes: heap 55% (1126MB) in launch-server.sh; supervisor.js now suppresses
+  uncaughtException/unhandledRejection and stays up on SIGTERM/SIGINT so the
+  watchdog (5s poll, 20s cooldown) can always relaunch java/playit. GC flags
+  added: AlwaysPreTouch, PerfDisableSharedMem, G1NewSize 30/40,
+  MaxTenuringThreshold=4, UseStringDeduplication. Verified live: TPS 19.9/20,
+  tunnel status handshake 685ms, java relaunched with new flags after a stop.
+  NOTE: console.cmds works only while the `tail -f | java` pipe is healthy;
+  if console stops responding, the pipe was severed and only a watchdog
+  relaunch (kill java) fixes it — appended commands silently pile up.
+  REAL ping floor for players is ~7ms edge + client->playit edge distance;
+  tunnel handshake measured 63-844ms from sandbox. Single vCPU is the ceiling
+  for TPS under load, not RAM.
 - BOOT RESTORED + TUNNEL NEEDS RELINK (2026-09-26 ~14:05): the sandbox came
   back from a project export that did NOT carry two things.
   (1) `project-export.js` was absent even though `webapp-dashboard.js`
