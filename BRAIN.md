@@ -7,6 +7,25 @@ Cloudflare/cloudflared entirely on 2026-09-17).
 Entry point: `node server.js` → `supervisor.js` (npm start).
 
 ## Current state
+- BOOT RESTORED + TUNNEL NEEDS RELINK (2026-09-26 ~14:05): the sandbox came
+  back from a project export that did NOT carry two things.
+  (1) `project-export.js` was absent even though `webapp-dashboard.js`
+  requires it, so `node server.js` died with MODULE_NOT_FOUND and nothing
+  listened on 3000. Rebuilt it (pure Node, zlib deflate, no new deps) with the
+  same exclusions the old one used — node_modules/.git/jdk/jre/backups/logs/
+  crash-reports/cache/libraries/versions, the `playit` and `paper.jar`
+  binaries, *.pid/*.log/*.part/*.tmp, and every copy of the playit secret.
+  Self-exclusion is why it went missing: the export never contained the module
+  the dashboard needs to produce the export. If project-export.js is ever
+  regenerated, keep exporting it.
+  (2) The playit secret is GONE: no `server/playit.secret.toml`, no
+  `config/playit-secret.backup.toml`, PLAYIT_SECRET_KEY unset. The agent
+  therefore started in CLAIM MODE and `PLAYIT_ADDRESS` was deleted, so the
+  public address expressing-omitted.tun.ply.gg:24838 is stale/unreachable
+  until the agent is re-linked. Fix = user sets PLAYIT_SECRET_KEY in the Keys
+  panel (or approves the one-time claim link the dashboard shows at
+  /api/status `playit_claim_url`). Paper itself is healthy: 25565 open,
+  plugins loaded, ops verified.
 - PROJECT EXPORT button live (2026-09-26): dashboard header "Export Project"
   navigates a plain <a> to `api/export-project` (relative, so subpath-hosted
   dashboards resolve right) and lets the server's Content-Disposition name the
