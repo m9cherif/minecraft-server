@@ -24,7 +24,11 @@ MC_XMX="${MC_XMX:-}"
 if [ -z "$MC_XMX" ]; then
   mem_max="$(cat /sys/fs/cgroup/memory.max 2>/dev/null)"
   case "$mem_max" in ''|max) mem_max=2147483648;; esac
-  heap=$(( mem_max * 70 / 100 ))
+  # 70% of the cgroup got OOM-killed on a 2GB box (java 1.43GB heap + node
+  # dashboard + playit agent + page cache all share the limit; kernel log:
+  # "Memory cgroup out of memory: Killed process ... (java)"). 55% leaves
+  # ~850MB of headroom so the box stops thrashing kswapd at load 9.
+  heap=$(( mem_max * 55 / 100 ))
   [ "$heap" -lt 536870912 ] && heap=536870912
 else
   heap="$MC_XMX"
