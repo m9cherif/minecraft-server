@@ -28,8 +28,11 @@ if [ -z "$MC_XMX" ]; then
   # dashboard + playit agent + page cache all share the limit; kernel log:
   # "Memory cgroup out of memory: Killed process ... (java)"). 55% leaves
   # ~850MB of headroom so the box stops thrashing kswapd at load 9.
+  # Floor of 1GB keeps small boxes usable; cap 1400MB as a belt-and-braces
+  # guard for a future bigger sandbox that also runs other services.
   heap=$(( mem_max * 55 / 100 ))
-  [ "$heap" -lt 536870912 ] && heap=536870912
+  [ "$heap" -lt 1073741824 ] && heap=1073741824
+  [ "$heap" -gt 1468006400 ] && heap=1468006400
 else
   heap="$MC_XMX"
 fi
@@ -72,6 +75,9 @@ tail -n0 -f "$CMDS_FILE" | "$JAVA_BIN" \
   -Xms"${MC_XMS}" -Xmx"${MC_XMX}" \
   -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+ParallelRefProcEnabled \
   -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC \
+  -XX:+AlwaysPreTouch -XX:+PerfDisableSharedMem \
+  -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 \
+  -XX:MaxTenuringThreshold=4 -XX:+UseStringDeduplication \
   -jar paper.jar nogui > logs/stdio.log 2>&1 &
 java_pid=$!
 echo "$java_pid" > "$PID_FILE"

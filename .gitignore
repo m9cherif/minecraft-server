@@ -24,3 +24,4 @@ server/console.cmds
 server/.paper/
 server/usercache.json
 server/plugins/spark/tmp/
+backups/

@@ -16,7 +16,7 @@ import numpy as np
 import nbtlib
 from nbtlib import tag
 
-SCHEMATIC = "/home/sandbox/workspace/app/server/plugins/hub7834921.schematic"
+SCHEMATIC = "server/plugins/FastAsyncWorldEdit/schematics/hub7834921.schematic"
 OUT_ROOT = "/tmp/hub-stage-overworld"
 REGION_DIR = os.path.join(OUT_ROOT, "region")
 CHUNK_MIN, CHUNK_MAX = -5, 4

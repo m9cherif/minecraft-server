@@ -104,6 +104,17 @@ function start() {
   bootstrapStack().catch((err) => log(`bootstrap error: ${err.message}`));
 }
 
+// Stay alive no matter what: the platform restarts `node server.js` on
+// sandbox boot, and the watchdog below restarts java/playit, but an
+// unhandled rejection in the dashboard or an unexpected signal would
+// otherwise take the whole stack down with it. Log, keep running.
+process.on('uncaughtException', (err) =>
+  log(`uncaughtException (suppressed, staying up): ${err && err.stack || err}`));
+process.on('unhandledRejection', (reason) =>
+  log(`unhandledRejection (suppressed, staying up): ${reason && reason.stack || reason}`));
+process.on('SIGTERM', () => log('SIGTERM received — sandbox restart; watchdog children keep running'));
+process.on('SIGINT',  () => log('SIGINT received — staying up'));
+
 if (require.main === module) {
   start();
 }
