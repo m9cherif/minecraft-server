@@ -1,3 +1,9 @@
 node_modules
 .env
 .env.local
+
+# Server binaries and runtime state: fetched or generated, never committed
+*.jar
+server/plugin-holding/
+server/world/
+server/players/
