@@ -356,3 +356,9 @@ Entry point: `node server.js` → `supervisor.js` (npm start).
 - Note: `spawnRadius` gamerule DOES NOT EXIST on Paper 26.3 (removed
   vanilla rule); scatter control is not needed with the exact-Location
   teleport anyway.
+- v1.0.2 (2026-09-27): death respawn too — added @EventHandler
+  onPlayerRespawn(PlayerRespawnEvent) calling e.setRespawnLocation(exactSpawn())
+  so dying players (even with a bed/anchor set) land at the same exact
+  0.514/76.0/0.4 spot. Verified "Enabling OnJoinSpawn v1.0.2" in boot log +
+  Done + port 25565 open + /health 200. A real death test needs the user (no
+  player in-world from sandbox).

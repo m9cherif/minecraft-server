@@ -5,11 +5,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
- * Teleports every player to an EXACT fixed location on every join, including
- * relogs — regardless of where in the world they logged out.
+ * Teleports every player to an EXACT fixed location on every join (including
+ * relogs — regardless of where in the world they logged out) and on every
+ * death respawn, including when a bed/respawn anchor would otherwise be used.
  *
  * The coordinates are hardcoded (not world spawn) on purpose: vanilla spawn
  * logic scatters/adjusts players around the spawn block, which made joins land
@@ -28,7 +30,13 @@ public final class OnJoinSpawn extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {
         getServer().getPluginManager().registerEvents(this, this);
-        getLogger().info("enforcing world spawn on every join/relog");
+        getLogger().info("enforcing exact hub spawn on every join/relog and death respawn");
+    }
+
+    /** The exact hub spawn location in the main world. */
+    private Location exactSpawn() {
+        return new Location(getServer().getWorlds().get(0),
+                SPAWN_X, SPAWN_Y, SPAWN_Z, SPAWN_YAW, SPAWN_PITCH);
     }
 
     /**
@@ -38,9 +46,7 @@ public final class OnJoinSpawn extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         final Player player = event.getPlayer();
-        final Location spawn = new Location(
-                getServer().getWorlds().get(0), SPAWN_X, SPAWN_Y, SPAWN_Z,
-                SPAWN_YAW, SPAWN_PITCH);
+        final Location spawn = exactSpawn();
         getServer().getScheduler().runTask(this, () -> {
             if (!player.isOnline()) {
                 return;
@@ -49,5 +55,17 @@ public final class OnJoinSpawn extends JavaPlugin implements Listener {
             getLogger().info(player.getName() + " joined -> teleported to "
                     + SPAWN_X + " " + SPAWN_Y + " " + SPAWN_Z);
         });
+    }
+
+    /**
+     * Death respawn: force the exact hub spot. Overriding the event location
+     * bypasses both vanilla spawn scatter and any bed/respawn anchor the
+     * player may have set.
+     */
+    @EventHandler
+    public void onPlayerRespawn(PlayerRespawnEvent event) {
+        event.setRespawnLocation(exactSpawn());
+        getLogger().info(event.getPlayer().getName() + " died -> respawn at "
+                + SPAWN_X + " " + SPAWN_Y + " " + SPAWN_Z);
     }
 }
