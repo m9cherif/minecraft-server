@@ -362,3 +362,31 @@ Entry point: `node server.js` → `supervisor.js` (npm start).
   0.514/76.0/0.4 spot. Verified "Enabling OnJoinSpawn v1.0.2" in boot log +
   Done + port 25565 open + /health 200. A real death test needs the user (no
   player in-world from sandbox).
+
+## HubCompass plugin (2026-09-27, PR)
+- Source: scripts/hubcompass/src/com/baarcha/hubcompass/HubCompass.java +
+  plugin.yml; jar server/plugins/HubCompass-1.0.0.jar (gitignored).
+- Features per user request: (1) hub mob-spawn prevention — sets
+  GameRule.DO_MOB_SPAWNING=false on main world at every enable AND a
+  CreatureSpawnEvent guard cancelling all spawns except CUSTOM reason;
+  (2) "Gamemodes" compass in hotbar slot 0 on join+respawn (not duplicated,
+  cannot be dropped); right-click opens 18-slot menu with 12 gamemode icons
+  (Bedwars, Skywars, PvP, ...).
+- IMPORTANT per user: gamemodes are DISPLAY-ONLY for now — clicking any entry
+  cancels the click and closes the menu, NO items are given. Wire real
+  gamemodes later by replacing closeInventory() in onMenuClick.
+- GOTCHAS found this build (update the OnJoinSpawn recipe mentally):
+  paper-api 26.3 needs MORE classpath jars for broader API surface:
+  org.jetbrains annotations (downloaded annotations-26.0.2-1.jar from Maven
+  Central to /tmp/jb-annotations.jar — javac crashes with CompletionFailure
+  without it), and guava + failureaccess (Material.getItemAttributes refs
+  Multimap). Material.BED no longer exists -> RED_BED.
+- GOTCHA: gamerule RENAMES in 1.21.11+/26.x: doMobSpawning ->
+  minecraft:spawn_mobs, doInsomnia -> minecraft:spawn_phantoms, spawnMonsters
+  -> minecraft:spawn_monsters, spawnRadius -> minecraft:respawn_radius (full
+  table on nodecraft 1.21.11 gamerule page). Console confirmed: spawn_mobs
+  already false (set by plugin), spawn_monsters + spawn_phantoms set false.
+  Old `gamerule doMobSpawning false` errors with Incorrect argument.
+- Verified live: "[HubCompass] Enabling HubCompass v1.0.0", Done, port open,
+  /health 200, no entities present (kill @e probe found none).
+  Real compass-in-hand + menu-open test needs the user in-game.

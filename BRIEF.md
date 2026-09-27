@@ -93,6 +93,14 @@ dashboard for control.
 Honest limit: how the animation and crescent LOOK on a real client screen cannot
 be judged from sandbox pixel text alone; ask user for screenshot.
 
+## User decision (hub polish, 2026-09-27)
+- "No mob can spawn on the hub" + players get a Gamemodes compass.
+- HubCompass plugin v1.0.0: doMobSpawning=false enforced + CreatureSpawnEvent
+  guard; compass in hotbar slot 0 on join/respawn, right-click opens gamemode
+  menu (Bedwars, PvP, 12 entries).
+- Deliberate scope per user: gamemodes NOT implemented — clicking an entry
+  just closes the menu and gives no items. Ready to wire later.
+
 ## Open questions
 
 - RESOLVED 2026-09-19 — external-vantage test pass on the "still times out"

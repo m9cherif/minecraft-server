@@ -1,0 +1,6 @@
+name: HubCompass
+version: 1.0.0
+main: com.baarcha.hubcompass.HubCompass
+api-version: '1.13'
+description: Gives every player a Gamemodes compass (menu display-only for now) and keeps the hub free of mob spawning.
+author: Baarcha
