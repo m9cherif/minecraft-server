@@ -331,3 +331,28 @@ Entry point: `node server.js` → `supervisor.js` (npm start).
 - Multi-line console writes via `echo "a" > cmds` then `echo "b" >> cmds` in
   ONE bash line can merge/garble (execute-parse errors); send one command per
   sleep-2 append instead.
+
+## Exact fixed spawn 0.514/76.0/0.4 (2026-09-27, applied)
+- User complaint: spawn "sometimes in floor, sometimes right, sometimes
+  elsewhere" — vanilla join placement varied around the spawn block.
+- Fix: OnJoinSpawn plugin v1.0.1 teleports every join/relog to an EXACT
+  hardcoded Location (0.514, 76.0, 0.4, yaw/pitch 0) instead of
+  getSpawnLocation(); no vanilla scatter can move it.
+- Also set the world spawn block to match (setworldspawn 0 76 0) and placed a
+  solid polished_andesite block at (0,75,0) — verified via setblock+execute —
+  so the spawn Y=76 stands on solid floor, not air.
+- GOTCHA: sandbox has NO javac; Paper 26.3's paper-api jar is class-file v69
+  (Java 25) so javac 21 refuses it. Working recipe: download Temurin JDK 25
+  from api.adoptium.net to /tmp, compile against
+  server/libraries/io/papermc/paper/paper-api/**.jar PLUS all
+  server/libraries/net/kyori/*.jar (adventure + annotations deps needed on
+  the javac classpath). /tmp binaries do NOT survive; server/plugins/*.jar
+  written via terminal DID persist (gitignored).
+- GOTCHA: relative-path bug — a jar built with `cd scripts/onjoinspawn &&
+  jar --create --file ../../server/plugins/...` landed in
+  scripts/server/plugins/ (workspace root-relative resolution surprise);
+  boot then loaded the OLD v1.0.0 jar from server/plugins. Always verify the
+  installed jar's plugin.yml version matches the build.
+- Note: `spawnRadius` gamerule DOES NOT EXIST on Paper 26.3 (removed
+  vanilla rule); scatter control is not needed with the exact-Location
+  teleport anyway.
