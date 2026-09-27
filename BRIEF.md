@@ -101,6 +101,14 @@ be judged from sandbox pixel text alone; ask user for screenshot.
 - Deliberate scope per user: gamemodes NOT implemented — clicking an entry
   just closes the menu and gives no items. Ready to wire later.
 
+## User decision ("A Game" gamemode, 2026-09-27)
+- Design approved (DESIGN-a-game.md): 3 maps, countdown, dead=spectator,
+  everyone-dies=auto-restart, loot after countdown, last man standing.
+- Implemented as AGame plugin v0.1.0 (own agame_world void world, 3 procedural
+  arenas: Plains Pit / Nether Ruins / Sky Islands) + HubCompass v1.0.1 wiring
+  the "A Game" compass entry to /agame join. Boot-verified; full multiplayer
+  flow needs players in-game.
+
 ## Open questions
 
 - RESOLVED 2026-09-19 — external-vantage test pass on the "still times out"

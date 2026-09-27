@@ -387,6 +387,42 @@ Entry point: `node server.js` → `supervisor.js` (npm start).
   table on nodecraft 1.21.11 gamerule page). Console confirmed: spawn_mobs
   already false (set by plugin), spawn_monsters + spawn_phantoms set false.
   Old `gamerule doMobSpawning false` errors with Incorrect argument.
-- Verified live: "[HubCompass] Enabling HubCompass v1.0.0", Done, port open,
+- Verified live: "[HubCompass] Enabling HubCompass v1.0.1", Done, port open,
   /health 200, no entities present (kill @e probe found none).
   Real compass-in-hand + menu-open test needs the user in-game.
+
+## AGame gamemode (2026-09-27, PR) — design in DESIGN-a-game.md
+- Source scripts/agame/src/com/baarcha/agame/*.java (6 classes) + plugin.yml;
+  jar server/plugins/AGame-0.1.0.jar (gitignored). HubCompass v1.0.1 wires
+  the "A Game" menu entry (CLOCK icon) to `Bukkit.dispatchCommand(p,"agame join")`;
+  AGame is SOFTDEPEND, no compile-time coupling either direction.
+- Architecture: AGamePlugin (main+commands) / GameManager (state machine
+  IDLE->COUNTDOWN(10s)->PLAYING->GAMEOVER(5s)) / ArenaMap (data+procedural
+  build) / LootManager (7 chests/map, tiered COMMON+RARE tables) /
+  MapsMenu (9-slot, title "A Game - choose a map") / GameListener /
+  VoidGenerator. One shared void world agame_world (plugin-created via
+  WorldCreator+VoidGenerator), 3 arenas at x=0/1000/2000, y=100.
+- Flow per user spec: pick 1 of 3 maps -> countdown -> teleports + inventory
+  saved/cleared -> loot spawns at FIGHT -> last man standing; death =
+  drops cleared + respawn as SPECTATOR at arena sky view; everyone dead =
+  restart without winner; win/quit/relog = restore hub inventory + teleport
+  exact hub spawn; /agame leave anytime; /agame start <map> + stop (op, perm
+  agame.admin) for testing.
+- COMPILE recipe additions beyond OnJoinSpawn's: bungeecord-chat jar (any
+  CommandSender#sendMessage overload) and guava+failureaccess are REQUIRED;
+  org.jetbrains annotations-26.0.2-1.jar from Maven Central REQUIRED (javac
+  CompletionFailure crash without it). ChunkGenerator overrides that exist
+  in 26.3: shouldGenerate{Noise,Surface,Bedrock,Caves,Decorations}() and
+  getDefaultPopulators(World) — NOT (WorldInfo), no getBaseHeightMaterial,
+  no shouldGenerateMobs().
+- VERIFICATION GOTCHA (cost ~30 min): console `execute if block ... run say
+  X` is SILENT on Paper 26.3 — no log line whether true or false (plain `say`
+  works). Do NOT poll console.cmds for execute probes. Instead add a boot
+  self-check to the plugin that reads blocks back and logs them:
+  "arena self-check: GRASS_BLOCK @plains, NETHER_BRICKS @nether, END_STONE
+  @sky" — verified live at boot. Multi-command appends also lag several
+  minutes on this box; send one command per terminal call.
+- Verified live: Loading+Enabling AGame v0.1.0, agame_world created, arena
+  self-check pass, Done, port 25565, /health 200. NOT runtime-tested (needs
+  users in-game): countdown sync, death->spectator, loot chest contents,
+  win/restart loop.

@@ -45,10 +45,12 @@ public final class HubCompass extends JavaPlugin implements Listener {
     private static final Component COMPASS_NAME = Component.text(
             "Gamemodes", NamedTextColor.AQUA, TextDecoration.BOLD);
 
-    /** Ordered gamemode entries shown in the menu (display-only for now). */
+    /** Ordered gamemode entries shown in the menu. "A Game" is wired to
+     *  the real AGame plugin (§8 of DESIGN-a-game.md); the rest stay
+     *  display-only no-ops for now. */
     private static final Map<String, Material> GAMEMODES = new LinkedHashMap<>();
     static {
-        GAMEMODES.put("Bedwars", Material.RED_BED);
+        GAMEMODES.put("A Game", Material.CLOCK);
         GAMEMODES.put("Skywars", Material.GRASS_BLOCK);
         GAMEMODES.put("PvP", Material.DIAMOND_SWORD);
         GAMEMODES.put("KitPvP", Material.BOW);
@@ -142,9 +144,21 @@ public final class HubCompass extends JavaPlugin implements Listener {
             return;
         }
         event.setCancelled(true);
-        // Per user: gamemodes are not implemented yet — any click just closes
-        // the menu and hands out NOTHING.
-        event.getWhoClicked().closeInventory();
+        if (!(event.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) {
+            return;
+        }
+        // Real gamemode: "A Game" -> AGame plugin's join flow.
+        if (clicked.getType() == Material.CLOCK) {
+            player.closeInventory();
+            Bukkit.dispatchCommand(player, "agame join");
+            return;
+        }
+        // Everything else is still display-only: close, hand out NOTHING.
+        player.closeInventory();
     }
 
     @EventHandler
