@@ -304,3 +304,30 @@ Entry point: `node server.js` → `supervisor.js` (npm start).
   _minecraft._tcp.mc.chrif.net pointing at the playit address (free-friendly);
   A/CNAME alternative noted. Honest banner says xxx.craft.playit.gg works
   immediately and custom domain may need playit domain settings or upgrade.
+
+## Void world + hub-only overworld (2026-09-27, applied)
+- `server/server.properties`: `level-type=minecraft\:flat` +
+  `generator-settings={"layers":[],"biome":"minecraft:the_void"}` = fully void
+  overworld with NO terrain and NO bedrock anywhere (verified at chunk 62,62:
+  air at y=0 and y=64).
+- GOTCHA: do NOT just delete the overworld dimension dir — Paper fails to boot
+  with "Overworld settings missing" because it needs
+  `dimensions/minecraft/overworld/data/minecraft/world_gen_settings.dat`, whose
+  generator must match server.properties. Deleting the ENTIRE `server/world/`
+  dir (level.dat + all dims) makes Paper regenerate every dim from the new
+  properties in ~30s. Nether/End also regenerated fresh.
+- GOTCHA: console pipe severs silently after java dies/relaunches; appended
+  `stop` lines go nowhere. After relaunch, test with `list` first; if dead,
+  kill the java pid — watchdog relaunches within seconds.
+- Procedure that worked: console stop (verify java gone) -> mv server/world to
+  backups/ -> let watchdog boot Paper on void generator -> stop again -> cp the
+  4 hub r.*.mca from /tmp/hub-stage-overworld/region/ into
+  world/dimensions/minecraft/overworld/region/ -> boot -> setworldspawn 0 69 0.
+- Hub floor top solid block at hub center is y=68 (stone_bricks); spawn must be
+  0 69 0 so players stand ON the hub. Previous 0 67 0 spawned inside/below the
+  surface (void-under-map complaint). Verify with
+  `execute if block 0 68 0 #minecraft:base_stone_overworld run say OK`.
+- Pre-change world backup: backups/world-pre-void-delete-20260927-141307/.
+- Multi-line console writes via `echo "a" > cmds` then `echo "b" >> cmds` in
+  ONE bash line can merge/garble (execute-parse errors); send one command per
+  sleep-2 append instead.
