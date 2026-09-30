@@ -4,6 +4,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.GameRule;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -23,8 +24,11 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Hub quality-of-life plugin, per user request:
@@ -37,6 +41,10 @@ import java.util.Map;
  *    the gamemodes themselves are NOT implemented yet — clicking any entry
  *    simply closes the menu and gives NO items. The menu is display-only for
  *    now, ready to be wired to real gamemodes later.
+ * 3. Owner accounts join the hub in Creative. The server console cannot target
+ *    offline players on this Paper build (and a player who has never joined has
+ *    no player data yet), so the mode is applied on join. AGame saves and
+ *    restores the hub gamemode, so a match does not strip it.
  */
 public final class HubCompass extends JavaPlugin implements Listener {
 
@@ -44,6 +52,10 @@ public final class HubCompass extends JavaPlugin implements Listener {
             "Gamemodes", NamedTextColor.GOLD, TextDecoration.BOLD);
     private static final Component COMPASS_NAME = Component.text(
             "Gamemodes", NamedTextColor.AQUA, TextDecoration.BOLD);
+
+    /** Accounts that always spawn in Creative on the hub (user request). */
+    private static final Set<String> CREATIVE_PLAYERS = new HashSet<>(
+            Arrays.asList("m9cherif3"));
 
     /** Ordered gamemode entries shown in the menu. "A Game" is wired to
      *  the real AGame plugin (§8 of DESIGN-a-game.md); the rest stay
@@ -72,8 +84,9 @@ public final class HubCompass extends JavaPlugin implements Listener {
         hub.setGameRule(GameRule.DO_MOB_SPAWNING, false);
 
         getServer().getPluginManager().registerEvents(this, this);
-        getLogger().info("hub mob spawning disabled (doMobSpawning=false) and "
-                + "gamemode compass enabled for every player");
+        getLogger().info("hub mob spawning disabled (doMobSpawning=false), "
+                + "gamemode compass enabled for every player, creative owners: "
+                + CREATIVE_PLAYERS);
     }
 
     // ------------------------------------------------------------ mob guard
@@ -95,11 +108,18 @@ public final class HubCompass extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        giveCompass(event.getPlayer());
+        Player player = event.getPlayer();
+        if (CREATIVE_PLAYERS.contains(player.getName().toLowerCase())) {
+            player.setGameMode(GameMode.CREATIVE);
+            getLogger().info(player.getName() + " joined in Creative");
+        }
+        giveCompass(player);
     }
 
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
+        // Vanilla keeps the gamemode across death, so a creative owner stays
+        // creative; AGame overrides SPECTATOR for its own participants.
         giveCompass(event.getPlayer());
     }
 
