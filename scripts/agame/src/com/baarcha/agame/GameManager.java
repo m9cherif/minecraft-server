@@ -43,6 +43,7 @@ public final class GameManager {
 
     /** Saved hub inventories + game mode, restored on game end. */
     private final Map<UUID, ItemStack[]> savedInventories = new LinkedHashMap<>();
+    private final Map<UUID, GameMode> savedGameModes = new LinkedHashMap<>();
 
     private BukkitTask countdownTask;
     private int secondsLeft;
@@ -250,12 +251,17 @@ public final class GameManager {
     private void saveHubInventory(Player p) {
         if (!savedInventories.containsKey(p.getUniqueId())) {
             savedInventories.put(p.getUniqueId(), p.getInventory().getContents());
+            // Creative owners (HubCompass) must get their hub mode back.
+            savedGameModes.put(p.getUniqueId(), p.getGameMode());
         }
     }
 
     /** Teleports back to the exact hub spawn and restores the hub state. */
     private void restoreToHub(Player p, boolean restoreInventory) {
-        p.setGameMode(GameMode.SURVIVAL);
+        GameMode hubMode = savedGameModes.getOrDefault(p.getUniqueId(),
+                GameMode.SURVIVAL);
+        savedGameModes.remove(p.getUniqueId());
+        p.setGameMode(hubMode);
         p.teleport(plugin.hubSpawn());
         if (restoreInventory) {
             ItemStack[] hub = savedInventories.remove(p.getUniqueId());
