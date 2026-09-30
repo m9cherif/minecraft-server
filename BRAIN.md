@@ -426,3 +426,22 @@ Entry point: `node server.js` → `supervisor.js` (npm start).
   self-check pass, Done, port 25565, /health 200. NOT runtime-tested (needs
   users in-game): countdown sync, death->spectator, loot chest contents,
   win/restart loop.
+
+## Creative owner accounts (PR #9, HubCompass v1.1.0 / AGame v0.1.1)
+- User asked to make m9cherif3 creative while OFFLINE. Two blockers found:
+  1) `server/console.cmds` pipe passes the WHOLE line to the server as ONE
+     argument, so multi-word commands break: `gamemode m9cherif3 creative`
+     returns "Unknown game mode: m9cherif3 ... m9cherif3 creative<--[HERE]"
+     (leading slash makes no difference). Single-word commands (`say X`,
+     `stop`) work fine.
+  2) m9cherif3 has NO player data at all (server/world/playerdata is empty),
+     so even a correctly parsed offline `gamemode` would fail.
+- Solution: HubCompass holds CREATIVE_PLAYERS (currently just m9cherif3,
+  matched case-insensitively) and calls setGameMode(CREATIVE) on
+  PlayerJoinEvent, logging "<name> joined in Creative". Vanilla keeps the
+  gamemode across death, so respawn needs nothing.
+- AGame must not clobber it: GameManager now keeps savedGameModes (saved in
+  saveHubInventory) and restoreToHub uses that instead of hardcoded SURVIVAL.
+  Without this, a creative owner returning from a match dropped to survival.
+- To add more owner accounts, extend the CREATIVE_PLAYERS list in
+  scripts/hubcompass/src/.../HubCompass.java and rebuild HubCompass.
