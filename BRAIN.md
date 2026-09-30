@@ -445,3 +445,43 @@ Entry point: `node server.js` → `supervisor.js` (npm start).
   Without this, a creative owner returning from a match dropped to survival.
 - To add more owner accounts, extend the CREATIVE_PLAYERS list in
   scripts/hubcompass/src/.../HubCompass.java and rebuild HubCompass.
+
+## Arcade suite (PR #10, Arcade v0.1.0 / HubCompass v1.2.0)
+- ONE plugin for 11 gamemodes, not 11 jars. Engine: GameSession (shared
+  COUNTDOWN->PLAYING->GAMEOVER state machine + hub inventory/gamemode save &
+  restore) / GameMode (abstract base: identity, build, kit, tick, winner,
+  timeLimit, scoreboard lines) / Arena (relative block-stamp helper) /
+  Scoreboards (per-player sidebar) / Hooks (ModeListener, DamageListener,
+  MoveListener, InteractListener, DropListener, HungerFree).
+- Rounds are SERIALISED: one active session at a time (1 vCPU / 1983 MB).
+  Shared void world `minecraft:arcade_world` (note the namespace in the log);
+  each mode owns a 1000-block X band: skywars 5000, pvp 6000, kitpvp 7000,
+  duels 8000, sumo 9000, parkour 10000, skyblock 11000, murdermystery 12000,
+  ctf 13000, hideandseek 14000, buildfights 15000.
+- API GOTCHAS hit while building (Paper 26.3):
+  * A class named `GameMode` in your own package SHADOWS org.bukkit.GameMode —
+    you cannot import the Bukkit one. Fully qualify `org.bukkit.GameMode`
+    everywhere in that package. (Cost: one confusing compile round.)
+  * `EntityDamageEvent` has NO getDamager(); cast to
+    EntityDamageByEntityEvent first.
+  * `Material.WOOD` is gone -> OAK_PLANKS. `Material.RED_LEATHER_CHESTPLATE`/
+    BLUE_... gone -> use LeatherArmorMeta.setColor() on LEATHER_CHESTPLATE.
+  * `Material.WOOL` gone -> WHITE_WOOL.
+  * Sound constants: ENTITY_ENDER_DRONG_GROWTH does not exist ->
+    ENTITY_ENDER_DRAGON_GROWL. playSound(Location, Sound, float) is invalid;
+    the 4-arg (Location, Sound, volume, pitch) form is required.
+  * Scoreboard: `board.getScore(String)` does NOT exist; use
+    `board.getScores(String)` and setScore on each returned Score.
+    `Objective.displayName(Component)` exists (setDisplayName is the legacy
+    String form). `ChatColor.of(Color)` is gone — build invisible entries as
+    "§" + 2 hex digits instead.
+  * `ItemMeta.color(Color)` does not exist -> cast to LeatherArmorMeta.
+- JAR BUILDING TRAP: compiling hubcompass + arcade into ONE output dir and
+  jarring from it ships the other plugin's classes inside the jar. Compile
+  each plugin into its own fresh dir before jarring.
+- Roles for Murder Mystery / Hide and Seek are assigned in
+  GameMode.onRoundStart(), not giveKit(): the cast needs the full player list.
+- Boot-verified: 11/11 arenas stamped ("arena self-check: skywars=SANDSTONE,
+  pvp=SMOOTH_STONE, ..."), modes registered, no errors, Done (53.5s).
+- NOT runtime-verified: all 11 modes need real players (countdown, roles,
+  kills, scoring, voting, win conditions). Ask the user to try them.

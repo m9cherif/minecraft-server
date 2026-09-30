@@ -57,23 +57,35 @@ public final class HubCompass extends JavaPlugin implements Listener {
     private static final Set<String> CREATIVE_PLAYERS = new HashSet<>(
             Arrays.asList("m9cherif3"));
 
-    /** Ordered gamemode entries shown in the menu. "A Game" is wired to
-     *  the real AGame plugin (§8 of DESIGN-a-game.md); the rest stay
-     *  display-only no-ops for now. */
+    /** Ordered gamemode entries shown in the menu: label -> icon. */
     private static final Map<String, Material> GAMEMODES = new LinkedHashMap<>();
+    /** Label -> the command that starts that mode. */
+    private static final Map<String, String> COMMANDS = new LinkedHashMap<>();
     static {
         GAMEMODES.put("A Game", Material.CLOCK);
-        GAMEMODES.put("Skywars", Material.GRASS_BLOCK);
-        GAMEMODES.put("PvP", Material.DIAMOND_SWORD);
+        COMMANDS.put("A Game", "agame join");
+        GAMEMODES.put("SkyWars", Material.GRASS_BLOCK);
+        COMMANDS.put("SkyWars", "arcade join skywars");
+        GAMEMODES.put("PvP", Material.IRON_SWORD);
+        COMMANDS.put("PvP", "arcade join pvp");
         GAMEMODES.put("KitPvP", Material.BOW);
+        COMMANDS.put("KitPvP", "arcade join kitpvp");
         GAMEMODES.put("Duels", Material.ENDER_PEARL);
-        GAMEMODES.put("Parkour", Material.LEATHER_BOOTS);
-        GAMEMODES.put("Skyblock", Material.OAK_SAPLING);
-        GAMEMODES.put("Murder Mystery", Material.OAK_SIGN);
-        GAMEMODES.put("Capture the Flag", Material.RED_BANNER);
+        COMMANDS.put("Duels", "arcade join duels");
         GAMEMODES.put("Sumo", Material.SADDLE);
+        COMMANDS.put("Sumo", "arcade join sumo");
+        GAMEMODES.put("Parkour", Material.LEATHER_BOOTS);
+        COMMANDS.put("Parkour", "arcade join parkour");
+        GAMEMODES.put("Skyblock", Material.OAK_SAPLING);
+        COMMANDS.put("Skyblock", "arcade join skyblock");
+        GAMEMODES.put("Murder Mystery", Material.OAK_SIGN);
+        COMMANDS.put("Murder Mystery", "arcade join murdermystery");
+        GAMEMODES.put("Capture the Flag", Material.RED_BANNER);
+        COMMANDS.put("Capture the Flag", "arcade join ctf");
         GAMEMODES.put("Hide and Seek", Material.EMERALD);
+        COMMANDS.put("Hide and Seek", "arcade join hideandseek");
         GAMEMODES.put("Build Fights", Material.BRICKS);
+        COMMANDS.put("Build Fights", "arcade join buildfights");
     }
 
     @Override
@@ -171,14 +183,23 @@ public final class HubCompass extends JavaPlugin implements Listener {
         if (clicked == null || clicked.getType() == Material.AIR) {
             return;
         }
-        // Real gamemode: "A Game" -> AGame plugin's join flow.
-        if (clicked.getType() == Material.CLOCK) {
-            player.closeInventory();
-            Bukkit.dispatchCommand(player, "agame join");
-            return;
-        }
-        // Everything else is still display-only: close, hand out NOTHING.
+        // Every entry is wired: dispatch the mode's own join command.
         player.closeInventory();
+        String command = commandFor(clicked);
+        if (command != null) {
+            Bukkit.dispatchCommand(player, command);
+        }
+    }
+
+    /** Resolves a clicked menu icon back to its label, then its command. */
+    private String commandFor(ItemStack clicked) {
+        ItemMeta meta = clicked.getItemMeta();
+        if (meta == null || meta.displayName() == null) {
+            return null;
+        }
+        String label = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+                .plainText().serialize(meta.displayName());
+        return COMMANDS.get(label);
     }
 
     @EventHandler

@@ -162,3 +162,40 @@ be judged from sandbox pixel text alone; ask user for screenshot.
   which Paper silently downgraded to default state; regenerated with proper
   {id, properties} compounds and re-applied (3 short cycles total). Stair facing
   + slab type now verified intact on the live server side.
+
+## User decision (full gamemode suite, 2026-09-30)
+- User: "now make the full all gamemodes after you see in the net deeply the
+  gamemodes" — the 11 compass entries that were display-only are now real.
+- Built as ONE plugin, `Arcade` v0.1.0, not 11 plugins: a shared engine
+  (GameSession state machine + GameMode base + Arena block-stamp helper +
+  Scoreboards sidebar + Hooks interfaces) with one small class per mode.
+  Rationale: the box has 1 vCPU / 1983 MB, so rounds are serialised (one
+  active session at a time) and 11 jars would have been pure duplication.
+- Shared void world `minecraft:arcade_world`; each mode owns a 1000-block X
+  band (skywars 5000, pvp 6000... buildfights 11000) so arenas never overlap.
+- Mechanics researched from the well-known versions of each mode:
+  - SkyWars: floating islands, per-island chest, richer mid island, mid
+    chests restock every 45s, last one standing.
+  - PvP: FFA, killstreak announcements, 15 kills or most-kills at 5:00.
+  - KitPvP: identical kit for all, instant respawn, x3/x5 combo multiplier
+    that decays after 8s without a kill, 4:00 round.
+  - Duels: 1v1 best-of-3, health reset each round.
+  - Sumo: 7x7 platform, no blocks, knockback that scales with the lead so a
+    duel can't stall, first to 2 rounds.
+  - Parkour: generated meandering course, emerald checkpoints, falls cost
+    progress, fastest finish wins.
+  - Skyblock: 3x3 void islands, resource ladder wood>stone>iron>diamond.
+  - Murder Mystery: 1 murderer / 1 detective / rest innocent, murderer knife,
+    detective bow+1 arrow, innocents throw snowballs to distract, 4:00 timer
+    (innocents win on timeout).
+  - Capture the Flag: red vs blue, steal enemy wool, return to own pedestal,
+    dropped flags return after 5s, 3 caps or lead at 5:00.
+  - Hide and Seek: hiders wear scenery (sneak+right-click), the finder
+    converts to a hider so one player can't end it alone, 5:00 timer.
+  - Build Fights: random theme, 4:00 build, 30s vote via /bfgame vote <n>.
+- HubCompass v1.2.0 now dispatches every menu entry to its mode's command
+  (label -> command map, resolved via the clicked item's plain-text name).
+- Commands: /arcade join <id> | leave | list | stop (arcade.admin) | /bfgame.
+- Boot-verified: 11 arenas stamped (self-check line in latest.log), no errors,
+  Done (53.5s), /health 200, 25565 open. NOT runtime-verified: every mode
+  needs real players in-game (countdown, roles, scoring, win conditions).
