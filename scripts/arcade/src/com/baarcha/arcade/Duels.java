@@ -38,6 +38,9 @@ public final class Duels extends GameMode
 
     @Override
     public void build(Arena a) {
+        // per-match state reset (build runs at every session start)
+        roundWins.clear();
+        roundNumber.clear();
         a.clear(-20, -5, -20, 20, 20, 20);
         a.fill(-16, 0, -16, 16, 0, 16, Material.POLISHED_ANDESITE);
         // two facing pedestals with a gap between them
@@ -55,7 +58,8 @@ public final class Duels extends GameMode
 
     @Override
     public List<Location> spawns() {
-        return List.of(map().at(-10, 1, 0, 90f, 0f), map().at(10, 1, 0, -90f, 0f));
+        // y=2: pedestal layer is at y=1, spawning at y=1 embeds feet in the block.
+        return List.of(map().at(-10, 2, 0, 90f, 0f), map().at(10, 2, 0, -90f, 0f));
     }
 
     @Override
@@ -86,9 +90,20 @@ public final class Duels extends GameMode
         if (!session.isParticipant(loser)) {
             return;
         }
+        // Fall back to "whoever is still standing": a duel lost to the void
+        // has no killer, and the round must still be scored.
         Player winner = loser.getKiller();
         if (winner == null || !session.isParticipant(winner)
                 || winner.getUniqueId().equals(loser.getUniqueId())) {
+            winner = null;
+            for (Player p : session.players()) {
+                if (!p.getUniqueId().equals(loser.getUniqueId())) {
+                    winner = p;
+                    break;
+                }
+            }
+        }
+        if (winner == null) {
             return;
         }
         int wins = roundWins.merge(winner.getUniqueId(), 1, Integer::sum);

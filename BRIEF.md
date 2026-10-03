@@ -197,5 +197,29 @@ be judged from sandbox pixel text alone; ask user for screenshot.
   (label -> command map, resolved via the clicked item's plain-text name).
 - Commands: /arcade join <id> | leave | list | stop (arcade.admin) | /bfgame.
 - Boot-verified: 11 arenas stamped (self-check line in latest.log), no errors,
-  Done (53.5s), /health 200, 25565 open. NOT runtime-verified: every mode
-  needs real players in-game (countdown, roles, scoring, win conditions).
+  Done (53.5s), /health 200, 25565 open.
+
+## Gamemode runtime verification (2026-10-03, Arcade v0.2.3 live)
+Verified with headless bot clients (mineflayer 1.20.4) playing real matches,
+plus server-log evidence:
+- PvP — FULL loop proven in one fresh session (server/logs/latest.log
+  19:20:31-19:22:16): join -> 10s countdown -> GO! -> 15 scored kills ->
+  killstreak announcements -> "FighterA wins!" -> both back on the hub.
+- Sumo — round loop verified live after the arena fix (latest.log 19:43:30,
+  19:50:16, 19:52:37: melee -> knockback -> "BotBeta fell out of the world"
+  -> "BotAlpha wins (1/2)"). A complete best-of-3 with the match winner is
+  archived in server/logs/2026-09-30-11.log.gz (20:44:57).
+- Murder Mystery — full loop observed with the real player (archived log
+  2026-10-03-1.log.gz, 18:25: role reveal -> GO! -> "m9cherif3 the murderer
+  wins!").
+- Defects found and fixed while verifying (Arcade v0.2.2 and v0.2.3):
+  1. PvP/KitPvP/Duels spawn points sat one block INSIDE their spawn
+     pedestals, so players could not move (spawn Y 1 -> 2).
+  2. Score/round maps persisted across matches, so a finished match's totals
+     leaked into the next one; they are now cleared at every session start,
+     and deaths after the winner is announced no longer score.
+- Not yet gameplay-verified: SkyWars, KitPvP, Duels, Parkour, Skyblock,
+  Capture the Flag, Hide and Seek, Build Fights (boot arena self-check and
+  registration only). Sumo's round-2 combat also stalls in the headless
+  harness for client-side reasons (post-teleport position desync), so its
+  post-fix best-of-3 was not played end-to-end by bots.

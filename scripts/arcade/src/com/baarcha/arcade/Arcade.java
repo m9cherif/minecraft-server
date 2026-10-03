@@ -200,12 +200,22 @@ public final class Arcade extends JavaPlugin {
             return;
         }
         if (active != null) {
+            // Latecomers may still join the SAME mode while it counts down;
+            // without this every 2+ player mode is unplayable, because the
+            // first joiner starts the countdown immediately.
+            boolean sameMode = active.mode() == mode;
+            boolean stillJoining = active.state() == GameSession.State.COUNTDOWN;
+            if (sameMode && stillJoining && active.hasRoom()) {
+                active.addLateJoiner(player);
+                player.sendMessage(mm("&aJoined &f" + mode.display() + "&a. Starting soon..."));
+                return;
+            }
             player.sendMessage(mm("&e" + active.mode().display()
                     + " is running. Join after it finishes."));
             return;
         }
         if (mode.minPlayers() > 1 && !player.hasPermission("arcade.admin")) {
-            // Still queue the player; an admin can start with fewer.
+            // Still start the round; an admin can force it with fewer players.
             player.sendMessage(mm("&7" + mode.display() + " &8| &f"
                     + mode.minPlayers() + " &7players needed. Waiting..."));
         }
