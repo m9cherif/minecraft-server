@@ -47,7 +47,13 @@ public final class ArcadeListener implements Listener {
         if (session == null) {
             return;
         }
-        if (event.getEntity() instanceof ModeListener listener) {
+        // Hooks live on the MODE, not on the player: this used to test the
+        // Player, which never implements them, so every mode silently missed
+        // its own death handler (no kills, no round wins, no role reactions).
+        // Only while PLAYING: deaths during GAMEOVER (after the winner was
+        // announced) must not keep scoring kills into the mode's maps.
+        if (session.state() == GameSession.State.PLAYING
+                && session.mode() instanceof ModeListener listener) {
             listener.onModeDeath(session, event);
         }
         // Arenas are self-contained: never drop loot into the void world.
@@ -66,7 +72,7 @@ public final class ArcadeListener implements Listener {
         if (session == null) {
             return;
         }
-        if (event instanceof DamageListener listener) {
+        if (session.mode() instanceof DamageListener listener) {
             listener.onModeDamage(session, event);
         }
         // No starvation/fall drowning in an arena.
@@ -120,11 +126,19 @@ public final class ArcadeListener implements Listener {
         }
     }
 
-    @EventHandler
+    /**
+     * Respawning inside a match must land the player back in the ARENA, not on
+     * the hub. This runs at HIGHEST so it wins over OnJoinSpawn's
+     * exact-hub-spawn handler, which would otherwise send a dead PvP/Sumo
+     * player to the lobby while their match is still running.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onRespawn(PlayerRespawnEvent event) {
         GameSession session = arcade.sessionOf(event.getPlayer());
         if (session != null) {
-            event.setRespawnLocation(session.mode().hubSpawn());
+            event.setRespawnLocation(session.spawnFor(event.getPlayer()));
+            session.handleRespawn(event.getPlayer());
         }
+        // not in a match: leave the hub behaviour to OnJoinSpawn untouched
     }
 }

@@ -43,6 +43,8 @@ public final class GameSession {
     private State state = State.COUNTDOWN;
     private final Set<UUID> participants = new LinkedHashSet<>();
     private final Set<UUID> alive = new LinkedHashSet<>();
+    /** Died in a respawning mode; put back in the fight when they respawn. */
+    private final Set<UUID> awaitingRespawn = new LinkedHashSet<>();
 
     private final Map<UUID, ItemStack[]> savedInventories = new LinkedHashMap<>();
     private final Map<UUID, org.bukkit.GameMode> savedGameModes = new LinkedHashMap<>();
@@ -120,6 +122,43 @@ public final class GameSession {
         saveHubState(player);
         participants.add(id);
         alive.add(id);
+    }
+
+    /**
+     * Called from the respawn event for modes where death is not elimination:
+     * restores the kit and counts the player as alive again.
+     */
+    public void handleRespawn(Player player) {
+        if (!awaitingRespawn.remove(player.getUniqueId())) {
+            return;
+        }
+        if (state != State.PLAYING || !participants.contains(player.getUniqueId())) {
+            return;
+        }
+        // 1 tick: the respawn is not fully applied until the next tick
+        player.getServer().getScheduler().runTaskLater(arcade.plugin(), () -> {
+            if (!player.isOnline() || !participants.contains(player.getUniqueId())) {
+                return;
+            }
+            player.setGameMode(org.bukkit.GameMode.SURVIVAL);
+            player.teleport(spawnFor(player));
+            fullReset(player);
+            alive.add(player.getUniqueId());
+            mode.giveKit(player, this);
+        }, 1L);
+    }
+
+    /**
+     * Seats a player who joined after the round already teleported everyone
+     * (allowed while still counting down). Without this they would be a
+     * participant standing on the hub while the match plays out around them.
+     */
+    public void addLateJoiner(Player player) {
+        join(player);
+        player.setGameMode(org.bukkit.GameMode.SURVIVAL);
+        fullReset(player);
+        player.teleport(spawnFor(player));
+        mode.giveKit(player, this);
     }
 
     private void saveHubState(Player player) {
@@ -271,25 +310,10 @@ public final class GameSession {
                     : mode.hubSpawn();
             player.teleport(view);
         } else {
-            // PvP-style modes: back into the fight shortly, still "alive".
-            player.getServer().getScheduler().runTaskLater(arcade.plugin(), () -> {
-                if (state != State.PLAYING || !player.isOnline()) {
-                    return;
-                }
-                if (!participants.contains(player.getUniqueId())) {
-                    return;
-                }
-                List<Location> spawns = mode instanceof SpawnProvider provider
-                        ? provider.spawns() : List.of(mode.hubSpawn());
-                if (spawns.isEmpty()) {
-                    return;
-                }
-                player.setGameMode(org.bukkit.GameMode.SURVIVAL);
-                player.teleport(spawnFor(player));
-                alive.add(player.getUniqueId());
-                fullReset(player);
-                mode.giveKit(player, this);
-            }, 20L);
+            // PvP-style modes: the respawn EVENT puts them back in the arena
+            // (see ArcadeListener#onRespawn). Teleporting from a death handler
+            // fights the respawn and strands them on the hub mid-match.
+            awaitingRespawn.add(player.getUniqueId());
         }
         String winner = mode.winner(this);
         if (winner != null) {
@@ -311,6 +335,7 @@ public final class GameSession {
         }
         participants.clear();
         alive.clear();
+        awaitingRespawn.clear();
         savedInventories.clear();
         savedGameModes.clear();
         savedLocations.clear();
@@ -349,18 +374,29 @@ public final class GameSession {
             return;
         }
         alive.remove(id);
+        awaitingRespawn.remove(id);
         savedInventories.remove(id);
         savedGameModes.remove(id);
         savedLocations.remove(id);
         arcade.scoreboards().hide(player);
         arcade.untrack(player);
+        // Everyone leaving must ALWAYS release the mode. Previously a round
+        // that emptied while PLAYING (winner() still null, e.g. a duel where
+        // both players quit) left the session active forever and the mode
+        // refused every later join with "is running".
+        if (participants.isEmpty()) {
+            if (task != null) {
+                task.cancel();
+                task = null;
+            }
+            arcade.onSessionFinished(this);
+            return;
+        }
         if (state == State.PLAYING) {
             String winner = mode.winner(this);
             if (winner != null) {
                 end(winner);
             }
-        } else if (participants.isEmpty()) {
-            finish();
         }
     }
 

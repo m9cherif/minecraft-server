@@ -38,14 +38,28 @@ public final class Pvp extends GameMode implements SpawnProvider, Hooks.ModeList
 
     @Override
     public void build(Arena a) {
+        // build() runs at every session start: scores must reset per match,
+        // otherwise the previous winner's total carries over and the next
+        // match ends on its first tick.
+        scores.clear();
+        streaks.clear();
         a.clear(-40, -10, -40, 40, 30, 40);
         // Symmetric arena: hollow box with a pillar-and-catwalk middle.
+        // The shell MUST stay open - the corner spawns are inside it, so a
+        // sealed box would wall every player into their own corner.
         a.shell(-32, 0, -32, 32, 14, 32, Material.SMOOTH_STONE);
+        // doorways: punch gaps through each of the four walls
+        for (int i = -24; i <= 24; i += 8) {
+            a.clear(-32, 1, i, 32, 4, i + 1);        // north/south walls
+            a.clear(i, 1, -32, i + 1, 4, 32);        // east/west walls
+        }
         a.fill(-32, 0, -32, 32, 0, 32, Material.SMOOTH_STONE);
         a.fill(-4, 1, -4, 4, 12, 4, Material.SMOOTH_STONE);
         a.platform(0, 13, 0, 6, Material.SMOOTH_STONE);
         a.platform(0, 7, 0, 20, Material.SMOOTH_STONE);
-        // four corner spawns
+        // four corner spawns: platform layer sits at y=1, so the spawn point
+        // must be y=2 (standing ON the emerald) — y=1 embeds feet inside the
+        // block and the player can never move.
         a.platform(-24, 1, -24, 3, Material.EMERALD_BLOCK);
         a.platform(24, 1, -24, 3, Material.EMERALD_BLOCK);
         a.platform(-24, 1, 24, 3, Material.EMERALD_BLOCK);
@@ -56,8 +70,8 @@ public final class Pvp extends GameMode implements SpawnProvider, Hooks.ModeList
     @Override
     public List<Location> spawns() {
         return List.of(
-                map().at(-24, 1, -24), map().at(24, 1, -24),
-                map().at(-24, 1, 24), map().at(24, 1, 24));
+                map().at(-24, 2, -24), map().at(24, 2, -24),
+                map().at(-24, 2, 24), map().at(24, 2, 24));
     }
 
     @Override

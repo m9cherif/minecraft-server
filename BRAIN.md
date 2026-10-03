@@ -483,5 +483,64 @@ Entry point: `node server.js` → `supervisor.js` (npm start).
   GameMode.onRoundStart(), not giveKit(): the cast needs the full player list.
 - Boot-verified: 11/11 arenas stamped ("arena self-check: skywars=SANDSTONE,
   pvp=SMOOTH_STONE, ..."), modes registered, no errors, Done (53.5s).
-- NOT runtime-verified: all 11 modes need real players (countdown, roles,
-  kills, scoring, voting, win conditions). Ask the user to try them.
+- NOT runtime-verified at that point: all 11 modes needed real players
+  (countdown, roles, kills, scoring, voting, win conditions). PvP, Sumo and
+  Murder Mystery have since been verified live — see the next section.
+
+## Arcade runtime verification (2026-10-03, Arcade 0.2.2 -> 0.2.3)
+- TWO REAL ARENA BUGS found by the headless bot harness and fixed:
+  1. SPAWN-INSIDE-PLATFORM. `Arena.platform(cx,cy,cz,r,mat)` fills a SINGLE
+     layer at y=cy, so the standing height on it is cy+1. Spawns declared at
+     cy put the player's feet INSIDE the block: they could not move at all
+     (probe: feetBlock=emerald_block, dx=0.00 across 2.4s of held forward).
+     Fixed in Pvp, KitPvp and Duels `spawns()` (y=1 -> y=2). CTF, HideAndSeek,
+     Sumo, SkyWars and Parkour spawn on top of a y=0 floor and were fine.
+  2. PER-MATCH STATE LEAK. Mode score/round maps live on the mode instance,
+     which outlives a session, so totals carried into the NEXT match: PvP's
+     following match would auto-end on inherited kills, and a kill landing
+     just after "wins!" was still scored (a 16th point). Fix: clear those
+     maps at the top of `build()` (it runs at every session start, in
+     GameSession.start(), and at boot) for Pvp/KitPvp/Duels/Sumo, and gate the
+     mode death hook on `state() == PLAYING` in ArcadeListener.onDeath.
+- BOT HARNESS (scripts/verify/*.js, mineflayer via NODE_PATH=/tmp/bots):
+  - Protocol MUST be 1.20.4: ViaVersion on this box drops 1.21.4+/26.1 with
+    "Invalid move player packet received". fix-movement.js is mandatory.
+  - Mineflayer never steps UP a 1-block ledge — hold `jump` while chasing, or
+    the bot wedges against the spawn pedestal just out of reach. That was the
+    second cause of the original "0 swings" runs.
+  - Do NOT click faster than ~250 ms: attack-cooldown scaling halves the
+    damage (measured 20 swings/kill at 180 ms vs 8 swings/kill at 250 ms).
+  - After an opponent respawns, re-resolve the target
+    (`a.players[b.username]`, fall back to `b.entity`) and pulse `jump` every
+    ~15 swings — the round-reset teleport desyncs the client's position from
+    the server's copy, after which the server silently rejects attacks as out
+    of reach. With that still stalling in the Sumo harness's round 2, treat
+    it as a client-side harness limit, not a server defect.
+  - The opponent's `bot.health` reading is unreliable: constantly 20 even
+    while the server knocked that bot off the platform.
+  - `/arcade` is PLAYER-only and the bots are not ops, so `/arcade stop`
+    cannot end a round — verify the natural win path (kill/time limit).
+- LOG EVIDENCE LOCATION: the current JVM writes server/logs/latest.log and
+  ROTATES on every restart; older runs survive only in the rotated
+  server/logs/YYYY-MM-DD-N.log.gz files (zgrep them). stdio.log is just the
+  current JVM's stream, NOT the full history as previously assumed.
+- VERIFIED WITH LOG EVIDENCE (2026-10-03):
+  - PvP, one fresh session, latest.log 19:20:31-19:22:16: both bots join ->
+    "Starting in 10s" countdown -> GO! -> 15x "FighterB was slain by
+    FighterA" -> 3-kill streak and RAGING announcements -> "[Arcade] [pvp]
+    FighterA wins!" -> both restored to the hub. No admin stop needed.
+  - Sumo: round loop verified live after the fixes (latest.log 19:43:30,
+    19:50:16, 19:52:37 — "BotAlpha wins (1/2)" right after "BotBeta fell out
+    of the world"). A complete best-of-3 including the match winner is in
+    2026-09-30-11.log.gz (20:41:40 round 1; 20:44:57 "BotAlpha wins (2/2)"
+    then "BotAlpha wins!").
+  - Murder Mystery: full loop with a real player in 2026-10-03-1.log.gz
+    18:25 — "A murderer walks among you..." -> GO! -> "m9cherif3 the murderer
+    wins!".
+  - STILL not gameplay-verified: SkyWars, KitPvP, Duels, Parkour, Skyblock,
+    Capture the Flag, Hide and Seek, Build Fights (boot arena self-check +
+    registration only). KitPvP/Duels carry the spawn fix but no live match
+    has been played on them.
+- Real player m9cherif3 drifts into arenas mid-test (joined a live Sumo round
+  at 19:59 and killed BotBeta) — check `joined the game` in latest.log before
+  a harness run, and never restart the server while someone is online.

@@ -43,6 +43,11 @@ public final class KitPvp extends GameMode
 
     @Override
     public void build(Arena a) {
+        // per-match state reset (build runs at every session start)
+        kills.clear();
+        combos.clear();
+        comboExpiry.clear();
+        spawnPoints.clear();
         a.clear(-30, -5, -30, 30, 20, 30);
         a.fill(-26, 0, -26, 26, 0, 26, Material.STONE);
         // four walled training lanes
@@ -58,9 +63,10 @@ public final class KitPvp extends GameMode
 
     @Override
     public List<Location> spawns() {
+        // y=2: pedestal layer is at y=1, spawning at y=1 embeds feet in the block.
         return List.of(
-                map().at(-18, 1, -18), map().at(18, 1, -18),
-                map().at(-18, 1, 18), map().at(18, 1, 18));
+                map().at(-18, 2, -18), map().at(18, 2, -18),
+                map().at(-18, 2, 18), map().at(18, 2, 18));
     }
 
     @Override

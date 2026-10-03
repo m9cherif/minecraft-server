@@ -36,15 +36,16 @@ public final class Sumo extends GameMode
 
     @Override
     public void build(Arena a) {
+        // per-match state reset (build runs at every session start)
+        wins.clear();
         a.clear(-15, -10, -15, 15, 15, 15);
-        // 7x7 platform, one block of margin: any real hit ends it
+        // 7x7 platform, open on every side: a hit must be able to send you off,
+        // so there is deliberately no railing here.
         a.platform(0, 0, 0, 3, Material.WHITE_WOOL);
         a.platform(0, 1, 0, 3, Material.WHITE_WOOL);
-        // a low lip so the platform reads clearly from a distance
-        a.fill(-3, 2, -3, -3, 2, 3, Material.WHITE_WOOL);
-        a.fill(3, 2, -3, 3, 2, 3, Material.WHITE_WOOL);
-        a.fill(-3, 2, -3, 3, 2, -3, Material.WHITE_WOOL);
-        a.fill(-3, 2, 3, 3, 2, 3, Material.WHITE_WOOL);
+        // a painted border one block OUTSIDE the walkable area, purely visual
+        a.fill(-4, 0, -4, 4, 0, 4, Material.GRAY_CONCRETE);
+        a.clear(-3, 0, -3, 3, 0, 3);
         spectator = a.at(0, 12, 0);
     }
 
@@ -102,8 +103,24 @@ public final class Sumo extends GameMode
     @Override
     public void onModeDeath(GameSession session, PlayerDeathEvent event) {
         Player loser = event.getEntity();
+        if (!session.isParticipant(loser)) {
+            return;
+        }
+        // A sumo round is decided by who is LEFT STANDING. The usual loser
+        // dies to the void, and void damage has no killer, so crediting
+        // getKiller() alone meant a knock-out round could never be awarded.
         Player winner = loser.getKiller();
-        if (winner == null || !session.isParticipant(winner)) {
+        if (winner == null || !session.isParticipant(winner)
+                || winner.getUniqueId().equals(loser.getUniqueId())) {
+            winner = null;
+            for (Player p : session.players()) {
+                if (!p.getUniqueId().equals(loser.getUniqueId())) {
+                    winner = p;
+                    break;
+                }
+            }
+        }
+        if (winner == null) {
             return;
         }
         int score = wins.merge(winner.getUniqueId(), 1, Integer::sum);
