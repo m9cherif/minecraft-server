@@ -223,3 +223,73 @@ plus server-log evidence:
   registration only). Sumo's round-2 combat also stalls in the headless
   harness for client-side reasons (post-teleport position desync), so its
   post-fix best-of-3 was not played end-to-end by bots.
+
+## User decisions (server rules + colours, 2026-10-03, Arcade 0.3.1 / AGame 0.1.2)
+- "only the op players can destroy blocks": Arcade/ProtectionListener cancels
+  BlockBreakEvent for everyone who is not an operator, in every world, with the
+  message "Only operators can break blocks." Verified live: a non-op bot's dig
+  left the block intact and got the message; the op bot destroyed it.
+- "in the hub only the ops can hit players": in the hub world, player damage
+  (melee or projectile) from a non-operator is cancelled with "Only operators
+  can hit players in the hub." Game arenas are deliberately NOT restricted -
+  that is where fighting belongs. Verified live: non-op attacker dealt 0
+  damage, op attacker took the target from 20.0 to 17.3 HP.
+- "in the games there is not colors, there is &": Arcade and AGame rendered
+  their '&'-coded strings raw. Both now translate '&' to the section sign
+  before deserialising, so players see real colours. Verified on the wire
+  (the server sends {"color":"gold"} / {"color":"gray"} components, and no
+  literal '&' codes reach the client).
+- Consequence of the block rule: spawn-protection set to 0 in
+  server/server.properties. The plugin now enforces the rule globally, and the
+  radius-16 vanilla rule only shadowed it (it cancelled hub breaks before any
+  plugin handler ran, so players got the vanilla "can't build here" message
+  instead of the server's rule).
+
+## User decision (Parkour Panic map, 2026-10-03, Arcade v0.4.0) - DELIVERED
+- User supplied the map via a Google Drive link (same file the minecraftmaps
+  link pointed at). It downloaded only after the file was shared publicly:
+  Drive serves a "too large to virus-scan" warning page for the 59 MB zip whose
+  hidden uuid field has to be replayed against
+  drive.usercontent.google.com/download?id=...&export=download&confirm=t&uuid=...
+- That archive is a BEDROCK world (a Java map converted to Bedrock), so Paper
+  cannot load it. The ORIGINAL Java Edition release was obtained instead from
+  the map author's Drive link (1QYEIq18eg2R3o3-e5AqfeBv7JB8FlxOC), which is a
+  proper Java world save: region chunks, DIM-1/DIM1, data/map_*.dat structures
+  and the parkourpanic datapack.
+- Installed at server/parkour_panic (players/stats/advancements/session.lock
+  stripped) and loaded by Arcade as world `minecraft:parkour_panic`,
+  spawn (1, 75, 52).
+- GOTCHA worth remembering: Paper's world container on this box is "." (the
+  server dir), and on first load Paper MIGRATED the legacy world itself into
+  world/dimensions/minecraft/parkour_panic - so the folder is no longer where
+  it was dropped. Arcade checks both layouts before loading.
+- Parkour mode now plays the map when it is installed: it stops stamping its
+  generated course, seats players at the map spawn, gives flight, rescues
+  anyone who falls out of the world, and runs a 300 s round (the map's own
+  command blocks/functions drive the course). It falls back to the generated
+  course when the map is absent.
+- Verified live (scripts/verify/parkour-map-check.js): a bot joining /arcade
+  parkour lands on the map at 1.0,74.5,52.0 standing on smooth_quartz, sees
+  GO!, and /arcade leave returns it to the hub.
+
+## Open item (was): Parkour Panic map import
+- Requested: use https://dl.minecraftmaps.com/parkour-panic-v2.2.zip as the
+  parkour map, and the same link as the PvP arena map.
+- BLOCKED: the host answers 403 with a Cloudflare "Just a moment..." challenge
+  for the file, the map page and the bare domain from this sandbox (no JS
+  engine to clear the challenge). Every path tried returns 403.
+- To finish: the user attaches the zip through Freebuff's Files (it lands in
+  public/media/) or provides a mirror that is not behind Cloudflare.
+- The archive has NEVER been opened - every request is blocked - so its format
+  is unknown and the import route cannot be fixed yet: a world save can be
+  loaded as its own world and pointed at by the modes, a .schematic has to be
+  stamped into an arena band, and other formats need their own path. Once the
+  file is in the workspace the route follows from what is actually inside it.
+  The existing procedural parkour course and PvP arena keep working meanwhile.
+- SECOND LINK (2026-10-03, Google Drive) - RESOLVED: once the file was
+  shared publicly the download worked (see the delivered section above). The
+  remaining open question is whether the PvP ARENA should also use this map;
+  the user's first message pasted the same URL for both modes and no separate
+  PvP map link has arrived. The PvP mode keeps its own procedural arena.
+- Also unresolved: the same URL was pasted for both Parkour and PvP. Confirm
+  whether PvP should really use the parkour map or a different one.

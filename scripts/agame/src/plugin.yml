@@ -1,5 +1,5 @@
 name: AGame
-version: 0.1.1
+version: 0.1.2
 main: com.baarcha.agame.AGamePlugin
 api-version: '1.13'
 description: 'A Game: last-man-standing gamemode with 3 maps, countdown, spectators and arena loot.'

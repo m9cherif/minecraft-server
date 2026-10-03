@@ -3,6 +3,7 @@ package com.baarcha.arcade;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.GameRule;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
@@ -50,13 +51,105 @@ public final class Arcade extends JavaPlugin {
         return modes.get(id.toLowerCase(Locale.ROOT));
     }
 
-    /** Legacy {@code §}-code chat lines -> Adventure components. */
+    /** Legacy {@code &}-coded chat lines -> Adventure components. */
     public static Component mm(String legacy) {
         return legacy(legacy);
     }
 
     public static Component legacy(String legacy) {
-        return LegacyComponentSerializer.legacySection().deserialize(legacy);
+        // Modes author their text with '&' colour codes, but Adventure only
+        // understands the section sign. Without this translation players saw
+        // the raw text ("&6&lGO!") instead of coloured output.
+        return LegacyComponentSerializer.legacySection()
+                .deserialize(ChatColor.translateAlternateColorCodes('&', legacy));
+    }
+
+    /**
+     * Folder name of the imported Parkour Panic map under server/world/.
+     * When present, the Parkour mode runs that map instead of the built-in
+     * generated course.
+     */
+    public static final String PARKOUR_WORLD = "parkour_panic";
+
+    private org.bukkit.World parkourWorld;
+
+    /** The imported map, or null when it has not been installed. */
+    public org.bukkit.World parkourWorld() {
+        return parkourWorld;
+    }
+
+    /**
+     * Loads the imported Parkour Panic map if it is installed. It is a normal
+     * Java world save dropped into server/world, so Paper can load it as-is;
+     * a missing folder is not an error and the mode falls back to its
+     * generated course.
+     */
+    private void loadParkourWorld() {
+        if (getServer().getWorld(PARKOUR_WORLD) != null) {
+            parkourWorld = getServer().getWorld(PARKOUR_WORLD);
+            return;
+        }
+        java.io.File dir = findParkourFolder();
+        if (dir == null) {
+            getLogger().info("Parkour Panic map not installed (looked for '" + PARKOUR_WORLD
+                    + "' in the world container and beside the main world)"
+                    + " - Parkour uses its generated course");
+            return;
+        }
+        try {
+            // Name-based: Paper resolves it inside the world container (which
+            // is "." here, i.e. server/), and a path-style creator is rejected
+            // as an illegal namespaced identifier.
+            parkourWorld = Bukkit.createWorld(new WorldCreator(PARKOUR_WORLD));
+        } catch (RuntimeException ex) {
+            getLogger().warning("Parkour Panic map failed to load from " + dir + ": "
+                    + ex.getMessage());
+            return;
+        }
+        if (parkourWorld != null) {
+            getLogger().info("Parkour Panic map loaded from " + dir.getAbsolutePath()
+                    + " spawn=" + parkourWorld.getSpawnLocation());
+        }
+    }
+
+    /**
+     * The map folder can sit in the world container or beside the main world
+     * depending on how the server was provisioned, so both are checked.
+     */
+    /**
+     * The map folder can live in the world container, or - after Paper's own
+     * legacy-world migration - under the main world's dimensions/minecraft
+     * namespace. Both layouts are checked.
+     */
+    private java.io.File findParkourFolder() {
+        java.io.File container = getServer().getWorldContainer();
+        if (container == null) {
+            container = new java.io.File(".");
+        }
+        java.util.List<java.io.File> candidates = new ArrayList<>();
+        candidates.add(new java.io.File(container, PARKOUR_WORLD));
+        candidates.add(new java.io.File(container,
+                "world/dimensions/minecraft/" + PARKOUR_WORLD));
+        candidates.add(new java.io.File(container, "world/" + PARKOUR_WORLD));
+        for (org.bukkit.World w : getServer().getWorlds()) {
+            candidates.add(new java.io.File(w.getWorldFolder(), PARKOUR_WORLD));
+            java.io.File dims = new java.io.File(w.getWorldFolder(), "../../dimensions/minecraft/"
+                    + PARKOUR_WORLD);
+            candidates.add(dims.getAbsoluteFile());
+        }
+        for (java.io.File dir : candidates) {
+            if (new java.io.File(dir, "level.dat").isFile()
+                    || new java.io.File(dir, "region").isDirectory()
+                    || new java.io.File(dir, "dimensions").isDirectory()) {
+                return dir;
+            }
+        }
+        getLogger().info("parkour map lookup: cwd=" + System.getProperty("user.dir")
+                + " container=" + getServer().getWorldContainer()
+                + " worlds=" + getServer().getWorlds().stream()
+                        .map(org.bukkit.World::getName).toList()
+                + " tried=" + candidates);
+        return null;
     }
 
     @Override
@@ -75,8 +168,10 @@ public final class Arcade extends JavaPlugin {
         arenaWorld.setStorm(false);
 
         registerModes();
+        loadParkourWorld();
 
         getServer().getPluginManager().registerEvents(new ArcadeListener(this), this);
+        getServer().getPluginManager().registerEvents(new ProtectionListener(this), this);
         getCommand("arcade").setExecutor(this);
         getCommand("bfgame").setExecutor(new BuildFightsCommand(this));
 
