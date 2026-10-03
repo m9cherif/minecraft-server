@@ -544,3 +544,43 @@ Entry point: `node server.js` → `supervisor.js` (npm start).
 - Real player m9cherif3 drifts into arenas mid-test (joined a live Sumo round
   at 19:59 and killed BotBeta) — check `joined the game` in latest.log before
   a harness run, and never restart the server while someone is online.
+
+## Server rules, colours and what the bot harness can/can't test (2026-10-03, Arcade 0.3.x)
+- COLOUR BUG (user-visible as literal "&6&lGO!"): Arcade.legacy() and
+  AGamePlugin.mm() deserialised with LegacyComponentSerializer.legacySection()
+  but every message is authored with '&' codes, which Adventure does not read.
+  Fixed by ChatColor.translateAlternateColorCodes('&', ...) first. HubCompass was
+  never affected (it builds Adventure Components directly).
+  * Verifying colours: prismarine-chat's ChatMessage.toString() DROPS
+    formatting, so a green/red test is impossible on it. Check the wire instead
+    — `m.json` must contain "color"/section-sign fields. Before the fix those
+    lines carried the raw "&7PvP &8| ..." text.
+- Protection rules live in Arcade/ProtectionListener (one jar, already
+  deployed): only `player.isOp()` may break blocks (any world); only ops may
+  damage players in the hub world (swing or projectile). Games are untouched.
+  * The break handler runs at EventPriority.LOWEST and does NOT set
+    ignoreCancelled: Paper's spawn protection cancels hub breaks first, and a
+    HIGH+ignoreCancelled handler would never run, so the player only ever saw
+    the vanilla "build.spawn_protection" message and never learned the rule.
+  * spawn-protection is now 0 in server.properties: with a plugin enforcing the
+    rule globally it was a redundant second rule that only muddied messages.
+- CONSOLE PIPE CORRECTION: multi-argument commands DO work (`op OpTester`,
+  `give OpTester dirt 1`, `tp <bot> x y z`, `gamemode creative <bot>` all
+  verified). The old note about "the whole line is one argument" was wrong —
+  `gamemode x creative` failed because the ARGUMENT ORDER is
+  `gamemode <mode> <player>`. The dashboard POST /command endpoint is a clean
+  way to send them from a harness (see scripts/verify/protection-verify.js).
+- BOT DESYNC: after a plugin teleport (session start, console tp) the bot's
+  client position can disagree with the server's, and the server then refuses
+  placements and attacks as out of reach. Any test that must actually MOVE or
+  PLACE something has to run in the hub, where the bots spawn normally. This
+  is also the real reason the Sumo harness stalled in round 2.
+- Ground truth for block tests: read the block from a DIFFERENT bot's chunk
+  cache (the placer's), not the digger's — the digger's cache does not reliably
+  receive the block-change packet and will report the wrong state.
+- ARENA BLOCKS ARE NOT PERSISTED between matches: scripts/verify/arena-probe.js
+  found pure air where the Sumo platform should be when probed outside a
+  session. Arenas are stamped in memory at boot and at session start; idle
+  chunks that unload before a save come back from the void-generator file.
+  Harmless in play (players always arrive through a session) but worth a
+  "save the world after build()" if arenas ever need to survive a restart.

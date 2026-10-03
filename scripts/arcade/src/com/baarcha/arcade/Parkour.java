@@ -21,6 +21,8 @@ public final class Parkour extends GameMode
 
     private static final int COURSE_SEGMENTS = 14;
     private static final int CHECKPOINT_EVERY = 4;
+    /** Round length when the imported Parkour Panic map is the course. */
+    private static final int MAP_ROUND_SECONDS = 300;
 
     private final Map<UUID, Integer> checkpoints = new HashMap<>();
     private final Map<UUID, Integer> finishTimes = new HashMap<>();
@@ -38,8 +40,21 @@ public final class Parkour extends GameMode
                 + " blocks. Fastest run wins; falls cost 5s.";
     }
 
+    /**
+     * True when the imported Parkour Panic map is installed. In that case the
+     * map itself is the course: it ships its own command blocks/functions, so
+     * this mode only has to seat players in it and run the round timer.
+     */
+    private boolean mapMode() {
+        return arcade.parkourWorld() != null;
+    }
+
     @Override
     public void build(Arena a) {
+        if (mapMode()) {
+            // the map world is its own arena; nothing to stamp here
+            return;
+        }
         a.clear(-10, -20, -90, 10, 40, 90);
         checkpoints.clear();
         finishTimes.clear();
@@ -74,11 +89,21 @@ public final class Parkour extends GameMode
 
     @Override
     public List<Location> spawns() {
+        org.bukkit.World map = arcade.parkourWorld();
+        if (map != null) {
+            Location start = map.getSpawnLocation();
+            return List.of(new Location(map, start.getX(), start.getY(), start.getZ()));
+        }
         return List.of(map().at(0, 1, 0));
     }
 
     @Override
-    public Location spectatorSpawn() { return spectator; }
+    public Location spectatorSpawn() {
+        if (mapMode()) {
+            return spawns().get(0).clone().add(0, 30, 0);
+        }
+        return spectator;
+    }
 
     @Override
     public void giveKit(Player player, GameSession session) {
@@ -87,7 +112,12 @@ public final class Parkour extends GameMode
         fullHeal(player);
         player.setAllowFlight(true);
         player.setFlying(true);
-        chat(player, "&7Reach the &egold pad&7. Checkpoints are &aemerald&7.");
+        if (mapMode()) {
+            chat(player, "&7Parkour Panic &8— &fdouble-tap space&7 to fly, "
+                    + "&fshift&7 to drop.");
+        } else {
+            chat(player, "&7Reach the &egold pad&7. Checkpoints are &aemerald&7.");
+        }
     }
 
     @Override
@@ -97,6 +127,17 @@ public final class Parkour extends GameMode
             return;
         }
         Location loc = player.getLocation();
+
+        if (mapMode()) {
+            // the map is its own course; only rescue players who fall out of
+            // it, so a stray fall never strands someone in the void
+            if (loc.getY() < loc.getWorld().getMinHeight() + 2) {
+                player.teleport(spawns().get(0));
+                player.setFallDistance(0f);
+                chat(player, "&cBack to the start");
+            }
+            return;
+        }
 
         // fell off the course
         if (loc.getY() < 60) {
@@ -132,10 +173,36 @@ public final class Parkour extends GameMode
 
     @Override
     public String winner(GameSession session) {
+        if (mapMode()) {
+            // the map scores itself; the round ends on the timer
+            return null;
+        }
         return finishTimes.entrySet().stream()
                 .min(Map.Entry.comparingByValue())
                 .map(e -> nameOf(session, e.getKey()))
                 .orElse(null);
+    }
+
+    @Override
+    public int timeLimitSeconds() {
+        // the imported map has no finish line we can read, so a round is a
+        // timed run through it
+        return mapMode() ? MAP_ROUND_SECONDS : 0;
+    }
+
+    @Override
+    public List<String> scoreboardLines(GameSession session, Player player) {
+        if (mapMode()) {
+            return List.of(
+                    "&fParkour Panic",
+                    "Time: &b" + secondsLeft(session) + "s",
+                    "&7parkour.arcade");
+        }
+        return List.of(
+                "Checkpoint: &a" + checkpoints.getOrDefault(player.getUniqueId(), 0),
+                "Best: &e" + personalBests.getOrDefault(player.getUniqueId(), 0) + "s",
+                "Finished: &b" + finishTimes.size(),
+                "&7parkour.arcade");
     }
 
     private String nameOf(GameSession session, UUID id) {
@@ -147,12 +214,4 @@ public final class Parkour extends GameMode
         return null;
     }
 
-    @Override
-    public List<String> scoreboardLines(GameSession session, Player player) {
-        return List.of(
-                "Checkpoint: &a" + checkpoints.getOrDefault(player.getUniqueId(), 0),
-                "Best: &e" + personalBests.getOrDefault(player.getUniqueId(), 0) + "s",
-                "Finished: &b" + finishTimes.size(),
-                "&7parkour.arcade");
     }
-}

@@ -84,9 +84,12 @@ public final class AGamePlugin extends JavaPlugin {
         return new Location(getServer().getWorlds().get(0), 0.514, 76.0, 0.4, 0f, 0f);
     }
 
-    /** Legacy `§`-code chat lines -> Adventure components (no extra deps). */
+    /** Legacy `&`-coded chat lines -> Adventure components (no extra deps). */
     Component mm(String legacy) {
-        return LegacyComponentSerializer.legacySection().deserialize(legacy);
+        // Adventure only reads the section sign; translate the '&' codes the
+        // messages are authored with or players see them as literal text.
+        return LegacyComponentSerializer.legacySection()
+                .deserialize(org.bukkit.ChatColor.translateAlternateColorCodes('&', legacy));
     }
 
     ArenaMap mapById(String id) {

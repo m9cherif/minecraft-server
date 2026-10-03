@@ -1,5 +1,5 @@
 name: Arcade
-version: 0.2.3
+version: 0.4.0
 main: com.baarcha.arcade.Arcade
 api-version: '1.13'
 description: Eleven playable hub gamemodes (SkyWars, PvP, KitPvP, Duels, Sumo, Parkour, Skyblock, Murder Mystery, Capture the Flag, Hide and Seek, Build Fights) on one shared engine.
